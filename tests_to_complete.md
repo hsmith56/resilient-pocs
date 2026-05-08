@@ -185,19 +185,19 @@ Start each scenario from an incident that already has a Criteria 4 condition-bas
 
 ## 6. Criteria 5 manual CIHT/WMA transfer scenarios
 
-These validate that manual movement between `DISO-CIHT` and `DISO-WMA` does not bounce back during later lifecycle stages when impact is `0`, `1`, or `2`.
+These validate that protected movement between `DISO-CIHT` and `DISO-WMA` does not bounce back during later lifecycle stages when impact is `0`, `1`, or `2`. For normal user signoff, use **Manual Transfer Ownership** rather than direct Owner edits.
 
-- [ ] SOAR-072 Start with an automatically routed `DISO-CIHT` incident. Manually change owner to `DISO-WMA`. Keep impact `0`, `1`, or `2`. Rerun automation. Owner remains `DISO-WMA`; manual-transfer lock is set.
+- [ ] SOAR-072 Start with an automatically routed `DISO-CIHT` incident. Use Manual Transfer Ownership to transfer to `DISO-WMA` with protection enabled. Keep impact `0`, `1`, or `2`. Rerun automation. Owner remains `DISO-WMA`; manual-transfer lock is set.
 - [ ] SOAR-073 With owner `DISO-WMA` and manual-transfer lock, move from `Triage` to `Response and Recovery` with impact `1` or `2`; rerun automation. Owner remains `DISO-WMA` even if normal Response and Recovery routing would assign a business owner.
 - [ ] SOAR-074 With owner `DISO-WMA` and manual-transfer lock, change CBD to `AM`, `P&C`, `GWM`, `GWM WMI`, `GF`, or `IB` while impact is `0`, `1`, or `2`; rerun automation. Owner remains `DISO-WMA`.
 - [ ] SOAR-075 With owner `DISO-WMA` and manual-transfer lock, rerun automation multiple times without changing fields. Owner remains `DISO-WMA`; lock remains stable.
-- [ ] SOAR-076 Manually change owner from `DISO-WMA` back to `DISO-CIHT` while impact is `0`, `1`, or `2`; rerun automation. Owner remains `DISO-CIHT`; manual-transfer lock is set/kept.
+- [ ] SOAR-076 Use Manual Transfer Ownership to transfer owner from `DISO-WMA` back to `DISO-CIHT` with protection enabled while impact is `0`, `1`, or `2`; rerun automation. Owner remains `DISO-CIHT`; manual-transfer lock is set/kept.
 - [ ] SOAR-077 Current owner `DISO-CIHT` with no prior router state showing `DISO-WMA`; rerun automation. Criteria 5 should not falsely trigger.
 - [ ] SOAR-078 Current owner is not `DISO-CIHT` or `DISO-WMA`; rerun automation. Criteria 5 should not trigger.
 - [ ] SOAR-079 Existing manual-transfer lock with impact changed to `3`; rerun automation. Manual-transfer lock releases and `impact_rating >= 3` owner route applies.
 - [ ] SOAR-080 Existing manual-transfer lock with impact changed to `4`; rerun automation. Manual-transfer lock releases and `impact_rating >= 3` owner route applies.
 - [ ] SOAR-081 Existing manual-transfer lock with impact changed to `5`; rerun automation. Manual-transfer lock releases and `impact_rating >= 3` owner route applies.
-- [ ] SOAR-082 Manual transfer to `DISO-WMA` in a closed/completed phase with impact `0`, `1`, or `2`; rerun automation. Criteria 5 preservation applies if automation is still run in that phase.
+- [ ] SOAR-082 Use Manual Transfer Ownership to transfer to `DISO-WMA` in a closed/completed phase with impact `0`, `1`, or `2`; rerun automation. Manual-transfer preservation applies if automation is still run in that phase.
 
 ## 7. Other owner lock scenarios
 
@@ -267,6 +267,114 @@ These are known undefined/gap behaviors shown in the Mermaid graph. They must ei
 - [ ] SOAR-127 Product owner accepts that impact `3`, `4`, or `5` overrides manual-transfer protection.
 - [ ] SOAR-128 Product owner accepts exact case-sensitive field matching, or requests normalization as a new requirement.
 
+
+## 13. Manual Transfer Ownership action scenarios
+
+These validate the user-facing **Manual Transfer Ownership** action backed by `manual_transfer.py`. Users should not directly edit internal owner-lock fields; the action must perform those updates.
+
+### 13.1 Action configuration and inputs
+
+- [ ] SOAR-129 The **Manual Transfer Ownership** action is available on incident objects.
+- [ ] SOAR-130 The action invokes `manual_transfer.py`.
+- [ ] SOAR-131 The action exposes a required target owner picker mapped to one supported input name, preferably `rule.input.target_owner`.
+- [ ] SOAR-132 The action exposes **Protect this transfer from automatic reassignment?** mapped to `rule.input.lock`.
+- [ ] SOAR-133 The action exposes an optional reason/comment mapped to `rule.input.reason`, `rule.input.comment`, or `rule.input.notes`.
+- [ ] SOAR-134 Standard users cannot directly edit `assignment_owner_locked`, `assignment_owner_lock_type`, `assignment_owner_lock_rule`, `assignment_owner_lock_reason`, or `assignment_owner_locked_at` from the incident layout.
+- [ ] SOAR-135 The action help text tells users to use **Manual Transfer Ownership** instead of direct Owner edits when they want a persistent transfer.
+
+### 13.2 Missing or invalid action input
+
+- [ ] SOAR-136 Run Manual Transfer Ownership without a target owner, if the UI allows it. The script does not change owner, writes failure status, updates evaluation timestamp, and adds a failure note.
+- [ ] SOAR-137 Run Manual Transfer Ownership with target owner supplied and no reason/comment. The action succeeds and the audit note omits or leaves blank the reason/comment.
+- [ ] SOAR-138 Run Manual Transfer Ownership with target owner and reason/comment. The action succeeds and the note includes the reason/comment.
+
+### 13.3 Unprotected transfer: `rule.input.lock = No/False`
+
+Use these when the selected owner is intended to be temporary and future routing may reassign the incident.
+
+- [ ] SOAR-139 From any owner, run Manual Transfer Ownership to `DISO-AM` with lock = No. Owner becomes `DISO-AM`.
+- [ ] SOAR-140 Same unprotected transfer clears `assignment_owner_locked` to false.
+- [ ] SOAR-141 Same unprotected transfer clears lock type, lock rule, lock reason, and locked timestamp.
+- [ ] SOAR-142 Same unprotected transfer writes `assignment_router_last_owner = DISO-AM`.
+- [ ] SOAR-143 Same unprotected transfer writes `last_assignment_rule_applied = Manual Transfer Ownership`.
+- [ ] SOAR-144 Same unprotected transfer writes assignment-router status indicating manual transfer completed and protection disabled.
+- [ ] SOAR-145 Same unprotected transfer writes evaluation timestamp.
+- [ ] SOAR-146 Same unprotected transfer writes a SOAR note with previous owner, target owner, protection = false, and lock type = none.
+- [ ] SOAR-147 Same unprotected transfer does not immediately run Assignment Router or otherwise instantly overwrite the selected target owner.
+- [ ] SOAR-148 After an unprotected transfer, change a routing field or manually recalculate. Normal Assignment Router behavior may overwrite the owner if a rule matches.
+- [ ] SOAR-149 Unprotected transfer from an incident with an existing `manual` lock clears the lock and leaves owner as selected target owner until a later router trigger.
+- [ ] SOAR-150 Unprotected transfer from an incident with an existing `manual_transfer` lock clears the lock and leaves owner as selected target owner until a later router trigger.
+- [ ] SOAR-151 Unprotected transfer from an incident with an existing `condition_based` lock clears the lock and leaves owner as selected target owner until a later router trigger, if this is accepted operational behavior.
+
+### 13.4 Protected CIHT/WMA transfers: `rule.input.lock = Yes/True`
+
+These validate that explicit protected transfers between the controlled CIHT/WMA pair create a `manual_transfer` lock.
+
+- [ ] SOAR-152 Starting owner `DISO-CIHT`, run Manual Transfer Ownership to `DISO-WMA` with lock = Yes. Owner becomes `DISO-WMA`.
+- [ ] SOAR-153 Same transfer sets `assignment_owner_locked = True`.
+- [ ] SOAR-154 Same transfer sets `assignment_owner_lock_type = manual_transfer`.
+- [ ] SOAR-155 Same transfer sets `assignment_owner_lock_rule = Criteria 5 - Preserve manual CIHT/WMA transfer`.
+- [ ] SOAR-156 Same transfer sets lock reason describing manual transfer between `DISO-CIHT` and `DISO-WMA`.
+- [ ] SOAR-157 Same transfer sets locked timestamp.
+- [ ] SOAR-158 Same transfer writes `assignment_router_last_owner = DISO-WMA`.
+- [ ] SOAR-159 Same transfer writes manual-transfer audit status, timestamp, and note.
+- [ ] SOAR-160 Starting owner `DISO-WMA`, run Manual Transfer Ownership to `DISO-CIHT` with lock = Yes. Owner becomes `DISO-CIHT` and lock type is `manual_transfer`.
+- [ ] SOAR-161 With `manual_transfer` lock and impact `0`, run Assignment Router. Owner remains protected.
+- [ ] SOAR-162 With `manual_transfer` lock and impact `1`, run Assignment Router. Owner remains protected.
+- [ ] SOAR-163 With `manual_transfer` lock and impact `2`, run Assignment Router. Owner remains protected.
+- [ ] SOAR-164 With `manual_transfer` lock, change impact to `3` and run Assignment Router. Lock releases and `impact_rating >= 3` routing applies.
+- [ ] SOAR-165 With `manual_transfer` lock, change impact to `4` and run Assignment Router. Lock releases and `impact_rating >= 3` routing applies.
+- [ ] SOAR-166 With `manual_transfer` lock, change impact to `5` and run Assignment Router. Lock releases and `impact_rating >= 3` routing applies.
+
+### 13.5 Protected non-CIHT/WMA transfers: `rule.input.lock = Yes/True`
+
+These validate that protected transfers outside the controlled pair create a durable `manual` lock.
+
+- [ ] SOAR-167 Starting owner `DISO-CIHT`, run Manual Transfer Ownership to `DISO-AM` with lock = Yes. Owner becomes `DISO-AM`.
+- [ ] SOAR-168 Same transfer sets `assignment_owner_locked = True`.
+- [ ] SOAR-169 Same transfer sets `assignment_owner_lock_type = manual`.
+- [ ] SOAR-170 Same transfer sets `assignment_owner_lock_rule = Manual Transfer Ownership`.
+- [ ] SOAR-171 Same transfer sets lock reason including manually transferred/protected text and the supplied reason/comment if provided.
+- [ ] SOAR-172 Same transfer sets locked timestamp.
+- [ ] SOAR-173 Same transfer writes `assignment_router_last_owner = DISO-AM`.
+- [ ] SOAR-174 Same transfer writes manual-transfer audit status, timestamp, and note.
+- [ ] SOAR-175 With this `manual` lock, run Assignment Router in Triage where normal routing would choose `DISO-CIHT`. Owner remains `DISO-AM`.
+- [ ] SOAR-176 With this `manual` lock, run Assignment Router in Response and Recovery where normal routing would choose a business owner. Owner remains the manually selected owner.
+- [ ] SOAR-177 With this `manual` lock and impact `3`, `4`, or `5`, run Assignment Router. Owner remains manually selected; high-impact routing does not override `manual` lock.
+- [ ] SOAR-178 With this `manual` lock and a matching member-add rule, run Assignment Router. Owner remains protected and members can still add `CIHT`.
+- [ ] SOAR-179 Transfer from `DISO-AM` to `DISO-WMA` with lock = Yes. Because previous owner is not in the CIHT/WMA pair, lock type is `manual`, not `manual_transfer`.
+- [ ] SOAR-180 Transfer from `DISO-CIHT` to `DISO-CIHT` with lock = Yes. Because previous and target owner are not different, lock type is `manual`, not `manual_transfer`.
+
+### 13.6 Removing protection using the same Manual Transfer Ownership action
+
+- [ ] SOAR-181 Start with an incident protected by `manual` lock. Run Manual Transfer Ownership to the current owner with lock = No. Lock fields are cleared and owner remains current owner.
+- [ ] SOAR-182 Start with an incident protected by `manual_transfer` lock. Run Manual Transfer Ownership to the current owner with lock = No. Lock fields are cleared and owner remains current owner.
+- [ ] SOAR-183 After removing protection, run Manual Recalculate Assignment. Normal routing resumes and may change owner according to ruleset.
+- [ ] SOAR-184 After removing protection, change a routing field. Automatic routing resumes and may change owner according to ruleset.
+
+### 13.7 `rule.input.lock` value handling
+
+- [ ] SOAR-185 `rule.input.lock = True` or boolean true enables protection.
+- [ ] SOAR-186 `rule.input.lock = False` or boolean false disables protection.
+- [ ] SOAR-187 If the SOAR form supplies text values, `Yes`, `true`, `1`, `on`, `lock`, `locked`, or `protect` enable protection.
+- [ ] SOAR-188 If the SOAR form supplies text values, `No`, `false`, `0`, blank, or missing disables protection.
+
+## 14. Direct owner edit and user-instruction scenarios
+
+These validate the operational guidance that users should use **Manual Transfer Ownership** instead of direct Owner edits when they want persistence.
+
+- [ ] SOAR-189 Directly edit Owner to a non-CIHT/WMA owner without using Manual Transfer Ownership. Confirm no new `manual` lock is created automatically.
+- [ ] SOAR-190 After direct Owner edit to a non-CIHT/WMA owner, run Assignment Router via Manual Recalculate or routing-field change. Confirm the owner may be overwritten by normal routing if a rule matches.
+- [ ] SOAR-191 Directly edit Owner to `DISO-WMA` without using Manual Transfer Ownership and run Assignment Router at impact `0`, `1`, or `2`. Confirm Criteria 5 behavior is inferred only if router state allows it.
+- [ ] SOAR-192 Directly edit Owner from `DISO-WMA` back to `DISO-CIHT` without using Manual Transfer Ownership and run Assignment Router. Confirm Criteria 5 behavior is inferred only if router state allows it.
+- [ ] SOAR-193 Directly edit Owner while a `manual` lock already exists. Confirm Assignment Router continues respecting the existing lock.
+- [ ] SOAR-194 Directly edit Owner while a `manual_transfer` lock already exists. Confirm Assignment Router behavior follows the existing manual-transfer lock and impact release rules.
+- [ ] SOAR-195 The incident layout or action instructions warn: direct Owner changes are not automatically protected and may be overwritten by assignment automation.
+- [ ] SOAR-196 The **Manual Transfer Ownership** action description states that it should be used instead of directly editing Owner when the transfer should persist.
+- [ ] SOAR-197 The **Protect this transfer from automatic reassignment?** input help text explains Yes vs No behavior.
+- [ ] SOAR-198 Internal assignment lock fields are hidden from standard users or clearly marked system-managed/admin-only.
+- [ ] SOAR-199 Users involved in UAT can identify where to find **Manual Transfer Ownership** and can describe when to choose protection = Yes vs No.
+
 ## Final signoff checklist
 
 - [ ] SIGNOFF-001 All assignment-mode opt-out scenarios pass.
@@ -278,6 +386,8 @@ These are known undefined/gap behaviors shown in the Mermaid graph. They must ei
 - [ ] SIGNOFF-007 All member handling scenarios pass.
 - [ ] SIGNOFF-008 All audit/note/custom-field scenarios pass.
 - [ ] SIGNOFF-009 All exact matching scenarios pass.
-- [ ] SIGNOFF-010 Product owner accepts or resolves all known gap scenarios.
-- [ ] SIGNOFF-011 No open defect remains against ownership, members, locks, lifecycle behavior, audit fields, or notes.
-- [ ] SIGNOFF-012 Business owner signs off that the IBM SOAR implementation behaves as expected in the platform.
+- [ ] SIGNOFF-010 All Manual Transfer Ownership scenarios pass.
+- [ ] SIGNOFF-011 All direct owner edit and user-instruction scenarios pass.
+- [ ] SIGNOFF-012 Product owner accepts or resolves all known gap scenarios.
+- [ ] SIGNOFF-013 No open defect remains against ownership, members, locks, lifecycle behavior, manual transfer, audit fields, or notes.
+- [ ] SIGNOFF-014 Business owner signs off that the IBM SOAR implementation behaves as expected in the platform.
