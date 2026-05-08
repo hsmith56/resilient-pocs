@@ -1,0 +1,29 @@
+criteria 1
+    in Triage phase:
+        if incident.properties.cbd == "GWM US" then set owner to "DISO-GWM US"
+        else set owner to "DISO-CIHT"
+
+        if incident.properties.impact_rating >= 3 then ownership immediately transfer as per criteria in critera 2
+
+criteria 2
+    if response and recovery phase:
+        if incident.properties.cbd any of ["AM" or "P&C" or "GWM"] AND incident.properties.impact_rating >= 1 then set owner to respective "DISO-AM", "DISO-P&C", "DISO-GWM WMI" and members = "CIHT" + current members
+        if incident.properties.cbd any of ["GF" or "IB"] AND incident.properties.impact_rating == 1 or == 2 then set owner to "DISO-CIHT", members unchanged
+        if incident.properties.impact_rating >= 3 then set owner to f"DISO-{incident.properties.cbd}" and members = "CIHT" + current members
+
+        if the cbd is either AM, P&C, or GWM WMI... AND impact rating lower or equal to 2 then change ownership to respective f"DISO-{incident.properties.cbd}" and members = "CIHT" + current members 
+        if impact rating lower or equal to 2 and cbd is either GF or IB, owner = CIHT and members unchanged
+        every change of impact_rating to 3 or above should change the owner to respective f"DISO-{incident.properties.cbd}" and add "CIHT" to members
+
+criteria 3
+    once all phase moves from triage to response and recovery, ownership changes respective to criteria 2
+    once response and recory complete, ownership should stay as is
+    once task closed, ownership stays as is
+
+criteria 4
+    owner should stay with CIHT in the below conditions unless impact rating is set to 3 or above or cbd is changed to anything other than "GF"
+    if the incident.properties.causedby = "IT systems" or "Other third party" then owner set to "CIHT"
+    if the incident.properties.causedby = "Employee" or "Other third party" AND incident.properties.type = "cyber attack" or "cyber incident" then owner set to "CIHT"
+
+criteria 5
+    if need to transfer case from "CIHT" to "DISO-WMA" or from "DISO-WMA" to "CIHT" the logic set for the new owner should apply for the rest of the case lifecycle (extra clarification: if ownership is changed respective to CIHT or DISO-WMA then case should not bounce back to original owner at the later stages of the case)
