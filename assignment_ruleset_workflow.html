@@ -50,18 +50,16 @@
   </style>
 </head>
 <body>
-  <header><h1>Assignment Ruleset Workflow Validation</h1><p>Tailored semantic workflow for <code>assignment_ruleset.py</code>. Red nodes with question marks are undefined/gap paths.</p></header>
+  <header><h1>Assignment Ruleset Workflow Validation</h1><p>Tailored semantic workflow for <code>C:\Users\Harrison\Desktop\Development\testing\assignment_ruleset.py</code>. Red nodes with question marks are undefined/gap paths.</p></header>
   <main>
     <section class="grid">
       <div class="card"><div class="metric ok">PASS</div><div>Validation status</div></div>
-      <div class="card"><div class="metric">11</div><div>Rules loaded</div></div>
-      <div class="card"><div class="metric gap">7</div><div>Gap branches shown</div></div>
+      <div class="card"><div class="metric">15</div><div>Rules loaded</div></div>
+      <div class="card"><div class="metric gap">5</div><div>Gap branches shown</div></div>
       <div class="card"><div class="metric warn">0</div><div>Warnings</div></div>
     </section>
-    <section class="card" style="margin-top:1rem;"><h2 style="margin-top:0;font-size:1rem;">Validation findings</h2><details open><summary class='gap'>Undefined/gap branches (7)</summary><ul>
-<li>CBD missing when impact_rating is 3-5 is intentionally unresolved and shown as a question mark.</li>
-<li>Impact rating is explicit numeric 0-5; impact_rating 0 has no Response and Recovery low-medium route unless another rule matches.</li>
-<li>Response and Recovery CBD values outside AM/P&amp;C/GWM/GWM WMI/GF/IB below impact 3 are not explicitly routed.</li>
+    <section class="card" style="margin-top:1rem;"><h2 style="margin-top:0;font-size:1rem;">Validation findings</h2><details open><summary class='gap'>Undefined/gap branches (5)</summary><ul>
+<li>Response and Recovery CBD values outside AM/P&amp;C/GWM/GWM WMI/GF/IB at impact 1-2 are not explicitly routed.</li>
 <li>Exact completed/closed phase names are not defined; non-active phases preserve current assignment.</li>
 <li>Field value case normalization is not defined; current routing uses exact matching.</li>
 <li>Criteria 5 manual transfer is inferred from router state rather than true event history.</li>
@@ -70,12 +68,16 @@
 <tr><td><span class='pill'>1000</span></td><td>Any</td><td>Criteria 5 - Preserve manual CIHT/WMA transfer</td><td><code>{&quot;manual_transfer_owner&quot;: {&quot;operator&quot;: &quot;in&quot;, &quot;value&quot;: [&quot;DISO-CIHT&quot;, &quot;DISO-WMA&quot;]}, &quot;is_high_impact&quot;: false}</code></td><td><code>{&quot;owner&quot;: {&quot;context&quot;: &quot;manual_transfer_owner&quot;}}</code></td></tr>
 <tr><td><span class='pill'>900</span></td><td>Triage</td><td>Criteria 2 - Triage high impact routes to CBD owner</td><td><code>{&quot;impact_rating&quot;: {&quot;operator&quot;: &quot;&gt;=&quot;, &quot;value&quot;: 3}, &quot;cbd&quot;: {&quot;operator&quot;: &quot;not_missing&quot;, &quot;value&quot;: true}}</code></td><td><code>{&quot;owner&quot;: {&quot;field&quot;: &quot;cbd&quot;, &quot;default_template&quot;: &quot;DISO-{cbd}&quot;}, &quot;members&quot;: [&quot;_existing_members&quot;, &quot;CIHT&quot;]}</code></td></tr>
 <tr><td><span class='pill'>900</span></td><td>Response and Recovery</td><td>Criteria 2 - Response and Recovery high impact routes to CBD owner</td><td><code>{&quot;impact_rating&quot;: {&quot;operator&quot;: &quot;&gt;=&quot;, &quot;value&quot;: 3}, &quot;cbd&quot;: {&quot;operator&quot;: &quot;not_missing&quot;, &quot;value&quot;: true}}</code></td><td><code>{&quot;owner&quot;: {&quot;field&quot;: &quot;cbd&quot;, &quot;default_template&quot;: &quot;DISO-{cbd}&quot;}, &quot;members&quot;: [&quot;_existing_members&quot;, &quot;CIHT&quot;]}</code></td></tr>
+<tr><td><span class='pill'>880</span></td><td>Triage</td><td>Criteria 6 - Triage missing CBD routes to CIHT</td><td><code>{&quot;cbd&quot;: {&quot;operator&quot;: &quot;missing&quot;, &quot;value&quot;: true}}</code></td><td><code>{&quot;owner&quot;: &quot;DISO-CIHT&quot;}</code></td></tr>
+<tr><td><span class='pill'>880</span></td><td>Response and Recovery</td><td>Criteria 6 - Response and Recovery missing CBD routes to CIHT</td><td><code>{&quot;cbd&quot;: {&quot;operator&quot;: &quot;missing&quot;, &quot;value&quot;: true}}</code></td><td><code>{&quot;owner&quot;: &quot;DISO-CIHT&quot;}</code></td></tr>
 <tr><td><span class='pill'>800</span></td><td>Triage</td><td>Criteria 4 - Triage GF causedby CIHT hold</td><td><code>{&quot;cbd&quot;: &quot;GF&quot;, &quot;is_high_impact&quot;: false, &quot;causedby&quot;: {&quot;operator&quot;: &quot;in&quot;, &quot;value&quot;: [&quot;IT systems&quot;, &quot;Other third party&quot;]}}</code></td><td><code>{&quot;owner&quot;: &quot;DISO-CIHT&quot;}</code></td></tr>
 <tr><td><span class='pill'>800</span></td><td>Response and Recovery</td><td>Criteria 4 - Response and Recovery GF causedby CIHT hold</td><td><code>{&quot;cbd&quot;: &quot;GF&quot;, &quot;is_high_impact&quot;: false, &quot;causedby&quot;: {&quot;operator&quot;: &quot;in&quot;, &quot;value&quot;: [&quot;IT systems&quot;, &quot;Other third party&quot;]}}</code></td><td><code>{&quot;owner&quot;: &quot;DISO-CIHT&quot;}</code></td></tr>
 <tr><td><span class='pill'>790</span></td><td>Triage</td><td>Criteria 4 - Triage GF causedby/type CIHT hold</td><td><code>{&quot;cbd&quot;: &quot;GF&quot;, &quot;is_high_impact&quot;: false, &quot;causedby&quot;: {&quot;operator&quot;: &quot;in&quot;, &quot;value&quot;: [&quot;Employee&quot;, &quot;Other third party&quot;]}, &quot;type&quot;: {&quot;operator&quot;: &quot;in&quot;, &quot;value&quot;: [&quot;cyber attack&quot;, &quot;cyber incident&quot;]}}</code></td><td><code>{&quot;owner&quot;: &quot;DISO-CIHT&quot;}</code></td></tr>
 <tr><td><span class='pill'>790</span></td><td>Response and Recovery</td><td>Criteria 4 - Response and Recovery GF causedby/type CIHT hold</td><td><code>{&quot;cbd&quot;: &quot;GF&quot;, &quot;is_high_impact&quot;: false, &quot;causedby&quot;: {&quot;operator&quot;: &quot;in&quot;, &quot;value&quot;: [&quot;Employee&quot;, &quot;Other third party&quot;]}, &quot;type&quot;: {&quot;operator&quot;: &quot;in&quot;, &quot;value&quot;: [&quot;cyber attack&quot;, &quot;cyber incident&quot;]}}</code></td><td><code>{&quot;owner&quot;: &quot;DISO-CIHT&quot;}</code></td></tr>
 <tr><td><span class='pill'>700</span></td><td>Response and Recovery</td><td>Criteria 2 - Response and Recovery AM/P&amp;C/GWM low-medium impact routes to business owner</td><td><code>{&quot;cbd&quot;: {&quot;operator&quot;: &quot;in&quot;, &quot;value&quot;: [&quot;AM&quot;, &quot;P&amp;C&quot;, &quot;GWM&quot;, &quot;GWM WMI&quot;]}, &quot;impact_rating&quot;: {&quot;operator&quot;: &quot;in&quot;, &quot;value&quot;: [1, 2]}}</code></td><td><code>{&quot;owner&quot;: {&quot;field&quot;: &quot;cbd&quot;, &quot;map&quot;: {&quot;AM&quot;: &quot;DISO-AM&quot;, &quot;P&amp;C&quot;: &quot;DISO-P&amp;C&quot;, &quot;GWM&quot;: &quot;DISO-GWM WMI&quot;, &quot;GWM WMI&quot;: &quot;DISO-GWM WMI&quot;}}, &quot;members&quot;: [&quot;_existing_members&quot;, &quot;CIHT&quot;]}</code></td></tr>
 <tr><td><span class='pill'>650</span></td><td>Response and Recovery</td><td>Criteria 2 - Response and Recovery GF/IB impact 1-2 stays with CIHT</td><td><code>{&quot;cbd&quot;: {&quot;operator&quot;: &quot;in&quot;, &quot;value&quot;: [&quot;GF&quot;, &quot;IB&quot;]}, &quot;impact_rating&quot;: {&quot;operator&quot;: &quot;in&quot;, &quot;value&quot;: [1, 2]}}</code></td><td><code>{&quot;owner&quot;: &quot;DISO-CIHT&quot;}</code></td></tr>
+<tr><td><span class='pill'>620</span></td><td>Response and Recovery</td><td>Criteria 6 - Response and Recovery impact 0 GWM US owner</td><td><code>{&quot;cbd&quot;: &quot;GWM US&quot;, &quot;impact_rating&quot;: 0}</code></td><td><code>{&quot;owner&quot;: &quot;DISO-GWM US&quot;}</code></td></tr>
+<tr><td><span class='pill'>600</span></td><td>Response and Recovery</td><td>Criteria 6 - Response and Recovery impact 0 default CIHT owner</td><td><code>{&quot;impact_rating&quot;: 0}</code></td><td><code>{&quot;owner&quot;: &quot;DISO-CIHT&quot;}</code></td></tr>
 <tr><td><span class='pill'>500</span></td><td>Triage</td><td>Criteria 1 - Triage GWM US owner</td><td><code>{&quot;cbd&quot;: &quot;GWM US&quot;, &quot;is_high_impact&quot;: false}</code></td><td><code>{&quot;owner&quot;: &quot;DISO-GWM US&quot;}</code></td></tr>
 <tr><td><span class='pill'>100</span></td><td>Triage</td><td>Criteria 1 - Triage default CIHT owner</td><td><code>{&quot;is_high_impact&quot;: false}</code></td><td><code>{&quot;owner&quot;: &quot;DISO-CIHT&quot;}</code></td></tr>
 </tbody></table></details></section>
@@ -87,6 +89,7 @@
         <div class="context-item" id="criteria-5-guide"><h3>Criteria 5 CIHT/WMA manual transfer lock</h3><p>When the router sees a manual transfer between CIHT and WMA while impact is 0-2, it preserves the new owner and automatically sets a manual-transfer lock for the case lifecycle. It breaks automatically if impact becomes 3-5 so escalation routing can apply.</p></div>
         <div class="context-item" id="manual-lock-guide"><h3>Manual / incident-lifetime locks</h3><p>These locks protect the current owner from automatic owner changes. They are not released by normal rule evaluation; an authorized user/admin must clear the lock fields or change the assignment mode/process that set them.</p></div>
         <div class="context-item" id="assignment-mode-guide"><h3>Assignment mode skip</h3><p>If assignment mode is Manual Override or Locked, the router skips automatic routing entirely and preserves current owner, members, workspace, and lock state. Clear assignment mode to allow automatic routing again.</p></div>
+        <div class="context-item" id="criteria-6-guide"><h3>Criteria 6 impact 0 / missing CBD routing</h3><p>In active phases, impact 0 routes to CIHT by default. GWM US remains the exception and routes to DISO-GWM US. If CBD is missing/unknown, owner routes to CIHT. Closed/completed phases still preserve current assignment.</p></div>
       </div>
     </section>
     <section class="graph-card" id="graphCard"><div class="graph-hint"><span>Click the workflow graph to open an interactive view. Mouse wheel zooms, drag pans, Escape closes. Hover criteria/lock nodes for plain-English help.</span><button type="button" class="open-graph-button" id="openGraphButton">Open interactive graph</button></div><div class="mermaid" id="workflowMermaid">flowchart TD
@@ -107,7 +110,6 @@
     LockType -- incident_lifetime --&gt; KeepLifetime[Keep incident lifetime lock&lt;br/&gt;owner protected]:::lock
     LockType -- condition_based --&gt; ConditionStillMatches{Original lock rule still matches?}:::decision
     LockType -- manual_transfer --&gt; ManualLockHigh{impact_rating &gt;= 3&lt;br/&gt;values 3-5?}:::decision
-    LockType -- unknown --&gt; UnknownLock[❓ Unknown lock type&lt;br/&gt;not explicitly defined&lt;br/&gt;current code keeps lock]:::gap
     ConditionStillMatches -- Yes --&gt; KeepCondition[Keep condition lock&lt;br/&gt;owner protected]:::lock
     ConditionStillMatches -- No --&gt; ReleaseCondition[Release condition lock&lt;br/&gt;re-evaluate routing]:::lock
     ManualLockHigh -- Yes: 3-5 --&gt; ReleaseManualTransfer[Release manual_transfer lock&lt;br/&gt;allow impact_rating &gt;= 3 routing]:::lock
@@ -118,7 +120,6 @@
     KeepLifetime --&gt; LockedPath
     KeepCondition --&gt; LockedPath
     KeepManualTransfer --&gt; LockedPath
-    UnknownLock --&gt; LockedPath
     LockedPath --&gt; PhaseCheck{Phase?}:::decision
 
     ManualTransferCheck -- Yes: owner pair and 0-2 --&gt; Criteria5[Criteria 5&lt;br/&gt;owner = current manual transfer owner&lt;br/&gt;DISO-CIHT or DISO-WMA&lt;br/&gt;set manual_transfer lock]:::action
@@ -129,7 +130,7 @@
     PhaseCheck -- Other phase --&gt; OtherPhase[No rule match&lt;br/&gt;preserve current owner/members&lt;br/&gt;❓ completed/closed phase names not explicit]:::gap
 
     TriageImpact -- Yes: 3-5 --&gt; TriageCBDPresent{CBD present?}:::decision
-    TriageCBDPresent -- No --&gt; TriageMissingCBD[❓ Missing CBD with impact_rating 3-5&lt;br/&gt;desired owner unknown&lt;br/&gt;no impact_rating &gt;= 3 owner assigned]:::gap
+    TriageCBDPresent -- No --&gt; TriageMissingCBD[Criteria 6&lt;br/&gt;missing CBD&lt;br/&gt;owner = DISO-CIHT&lt;br/&gt;members unchanged]:::action
     TriageCBDPresent -- Yes --&gt; TriageHigh[Criteria 2 impact_rating &gt;= 3&lt;br/&gt;owner = DISO-cbd&lt;br/&gt;members = existing + CIHT]:::action
     TriageImpact -- No: 0-2 --&gt; TriageGFHold{CBD == GF&lt;br/&gt;and Criteria 4 hold?}:::decision
     TriageGFHold -- causedby rule --&gt; TriageC4A[Criteria 4&lt;br/&gt;causedby IT systems or Other third party&lt;br/&gt;owner = DISO-CIHT&lt;br/&gt;set condition_based lock]:::action
@@ -139,16 +140,20 @@
     TriageGWMUS -- No --&gt; TriageDefault[Criteria 1 fallback&lt;br/&gt;owner = DISO-CIHT]:::action
 
     RRImpact -- Yes: 3-5 --&gt; RRCBDPresent{CBD present?}:::decision
-    RRCBDPresent -- No --&gt; RRMissingCBD[❓ Missing CBD with impact_rating 3-5&lt;br/&gt;desired owner unknown&lt;br/&gt;no impact_rating &gt;= 3 owner assigned]:::gap
+    RRCBDPresent -- No --&gt; RRMissingCBD[Criteria 6&lt;br/&gt;missing CBD&lt;br/&gt;owner = DISO-CIHT&lt;br/&gt;members unchanged]:::action
     RRCBDPresent -- Yes --&gt; RRHigh[Criteria 2 impact_rating &gt;= 3&lt;br/&gt;owner = DISO-cbd&lt;br/&gt;members = existing + CIHT]:::action
     RRImpact -- No: 0-2 --&gt; RRGFHold{CBD == GF&lt;br/&gt;and Criteria 4 hold?}:::decision
     RRGFHold -- causedby rule --&gt; RRC4A[Criteria 4&lt;br/&gt;causedby IT systems or Other third party&lt;br/&gt;owner = DISO-CIHT&lt;br/&gt;set condition_based lock]:::action
     RRGFHold -- causedby/type rule --&gt; RRC4B[Criteria 4&lt;br/&gt;causedby Employee or Other third party&lt;br/&gt;type cyber attack or cyber incident&lt;br/&gt;owner = DISO-CIHT&lt;br/&gt;set condition_based lock]:::action
     RRGFHold -- No --&gt; RRBusiness{CBD in AM/P&amp;C/GWM/GWM WMI&lt;br/&gt;and impact_rating in 1-2?}:::decision
-    RRBusiness -- Yes: condition satisfied --&gt; RRBusinessOwner[Criteria 2&lt;br/&gt;AM → DISO-AM&lt;br/&gt;P&C → DISO-P&C&lt;br/&gt;GWM → DISO-GWM WMI&lt;br/&gt;GWM WMI → DISO-GWM WMI&lt;br/&gt;members = existing + CIHT]:::action
+    RRBusiness -- Yes: condition satisfied --&gt; RRBusinessOwner[Criteria 2&lt;br/&gt;AM → DISO-AM&lt;br/&gt;PandC → DISO-PandC&lt;br/&gt;GWM → DISO-GWM WMI&lt;br/&gt;GWM WMI → DISO-GWM WMI&lt;br/&gt;members = existing + CIHT]:::action
     RRBusiness -- No: condition not satisfied --&gt; RRGFIB{CBD is GF or IB&lt;br/&gt;and impact_rating in 1-2?}:::decision
     RRGFIB -- Yes: condition satisfied --&gt; RRCIHT[Criteria 2&lt;br/&gt;owner = DISO-CIHT&lt;br/&gt;members unchanged]:::action
-    RRGFIB -- No: condition not satisfied --&gt; RRNoMatch[❓ Gap / no matching rule&lt;br/&gt;preserve current owner/members]:::gap
+    RRGFIB -- No: condition not satisfied --&gt; RRImpactZero{impact_rating == 0?}:::decision
+    RRImpactZero -- Yes: impact 0 --&gt; RRGWMUSZero{CBD == GWM US?}:::decision
+    RRGWMUSZero -- Yes --&gt; RRGWMUSZeroOwner[Criteria 6&lt;br/&gt;impact 0 exception&lt;br/&gt;owner = DISO-GWM US&lt;br/&gt;members unchanged]:::action
+    RRGWMUSZero -- No --&gt; RRCIHTZero[Criteria 6&lt;br/&gt;impact 0 default&lt;br/&gt;owner = DISO-CIHT&lt;br/&gt;members unchanged]:::action
+    RRImpactZero -- No: impact 1-2 but CBD not routed --&gt; RRNoMatch[❓ Gap / no matching rule&lt;br/&gt;preserve current owner/members]:::gap
 
     Criteria5 --&gt; End([Apply changes and write audit]):::start
     SkipAuto --&gt; End
@@ -165,6 +170,8 @@
     RRC4B --&gt; End
     RRBusinessOwner --&gt; End
     RRCIHT --&gt; End
+    RRGWMUSZeroOwner --&gt; End
+    RRCIHTZero --&gt; End
     RRNoMatch --&gt; End</div></section>
     <details class="card"><summary>Raw Mermaid source</summary><pre>flowchart TD
     classDef start fill:#ecfeff,stroke:#0891b2,color:#164e63,stroke-width:1px;
@@ -184,7 +191,6 @@
     LockType -- incident_lifetime --&gt; KeepLifetime[Keep incident lifetime lock&lt;br/&gt;owner protected]:::lock
     LockType -- condition_based --&gt; ConditionStillMatches{Original lock rule still matches?}:::decision
     LockType -- manual_transfer --&gt; ManualLockHigh{impact_rating &gt;= 3&lt;br/&gt;values 3-5?}:::decision
-    LockType -- unknown --&gt; UnknownLock[❓ Unknown lock type&lt;br/&gt;not explicitly defined&lt;br/&gt;current code keeps lock]:::gap
     ConditionStillMatches -- Yes --&gt; KeepCondition[Keep condition lock&lt;br/&gt;owner protected]:::lock
     ConditionStillMatches -- No --&gt; ReleaseCondition[Release condition lock&lt;br/&gt;re-evaluate routing]:::lock
     ManualLockHigh -- Yes: 3-5 --&gt; ReleaseManualTransfer[Release manual_transfer lock&lt;br/&gt;allow impact_rating &gt;= 3 routing]:::lock
@@ -195,7 +201,6 @@
     KeepLifetime --&gt; LockedPath
     KeepCondition --&gt; LockedPath
     KeepManualTransfer --&gt; LockedPath
-    UnknownLock --&gt; LockedPath
     LockedPath --&gt; PhaseCheck{Phase?}:::decision
 
     ManualTransferCheck -- Yes: owner pair and 0-2 --&gt; Criteria5[Criteria 5&lt;br/&gt;owner = current manual transfer owner&lt;br/&gt;DISO-CIHT or DISO-WMA&lt;br/&gt;set manual_transfer lock]:::action
@@ -206,7 +211,7 @@
     PhaseCheck -- Other phase --&gt; OtherPhase[No rule match&lt;br/&gt;preserve current owner/members&lt;br/&gt;❓ completed/closed phase names not explicit]:::gap
 
     TriageImpact -- Yes: 3-5 --&gt; TriageCBDPresent{CBD present?}:::decision
-    TriageCBDPresent -- No --&gt; TriageMissingCBD[❓ Missing CBD with impact_rating 3-5&lt;br/&gt;desired owner unknown&lt;br/&gt;no impact_rating &gt;= 3 owner assigned]:::gap
+    TriageCBDPresent -- No --&gt; TriageMissingCBD[Criteria 6&lt;br/&gt;missing CBD&lt;br/&gt;owner = DISO-CIHT&lt;br/&gt;members unchanged]:::action
     TriageCBDPresent -- Yes --&gt; TriageHigh[Criteria 2 impact_rating &gt;= 3&lt;br/&gt;owner = DISO-cbd&lt;br/&gt;members = existing + CIHT]:::action
     TriageImpact -- No: 0-2 --&gt; TriageGFHold{CBD == GF&lt;br/&gt;and Criteria 4 hold?}:::decision
     TriageGFHold -- causedby rule --&gt; TriageC4A[Criteria 4&lt;br/&gt;causedby IT systems or Other third party&lt;br/&gt;owner = DISO-CIHT&lt;br/&gt;set condition_based lock]:::action
@@ -216,16 +221,20 @@
     TriageGWMUS -- No --&gt; TriageDefault[Criteria 1 fallback&lt;br/&gt;owner = DISO-CIHT]:::action
 
     RRImpact -- Yes: 3-5 --&gt; RRCBDPresent{CBD present?}:::decision
-    RRCBDPresent -- No --&gt; RRMissingCBD[❓ Missing CBD with impact_rating 3-5&lt;br/&gt;desired owner unknown&lt;br/&gt;no impact_rating &gt;= 3 owner assigned]:::gap
+    RRCBDPresent -- No --&gt; RRMissingCBD[Criteria 6&lt;br/&gt;missing CBD&lt;br/&gt;owner = DISO-CIHT&lt;br/&gt;members unchanged]:::action
     RRCBDPresent -- Yes --&gt; RRHigh[Criteria 2 impact_rating &gt;= 3&lt;br/&gt;owner = DISO-cbd&lt;br/&gt;members = existing + CIHT]:::action
     RRImpact -- No: 0-2 --&gt; RRGFHold{CBD == GF&lt;br/&gt;and Criteria 4 hold?}:::decision
     RRGFHold -- causedby rule --&gt; RRC4A[Criteria 4&lt;br/&gt;causedby IT systems or Other third party&lt;br/&gt;owner = DISO-CIHT&lt;br/&gt;set condition_based lock]:::action
     RRGFHold -- causedby/type rule --&gt; RRC4B[Criteria 4&lt;br/&gt;causedby Employee or Other third party&lt;br/&gt;type cyber attack or cyber incident&lt;br/&gt;owner = DISO-CIHT&lt;br/&gt;set condition_based lock]:::action
     RRGFHold -- No --&gt; RRBusiness{CBD in AM/P&amp;C/GWM/GWM WMI&lt;br/&gt;and impact_rating in 1-2?}:::decision
-    RRBusiness -- Yes: condition satisfied --&gt; RRBusinessOwner[Criteria 2&lt;br/&gt;AM → DISO-AM&lt;br/&gt;P&C → DISO-P&C&lt;br/&gt;GWM → DISO-GWM WMI&lt;br/&gt;GWM WMI → DISO-GWM WMI&lt;br/&gt;members = existing + CIHT]:::action
+    RRBusiness -- Yes: condition satisfied --&gt; RRBusinessOwner[Criteria 2&lt;br/&gt;AM → DISO-AM&lt;br/&gt;PandC → DISO-PandC&lt;br/&gt;GWM → DISO-GWM WMI&lt;br/&gt;GWM WMI → DISO-GWM WMI&lt;br/&gt;members = existing + CIHT]:::action
     RRBusiness -- No: condition not satisfied --&gt; RRGFIB{CBD is GF or IB&lt;br/&gt;and impact_rating in 1-2?}:::decision
     RRGFIB -- Yes: condition satisfied --&gt; RRCIHT[Criteria 2&lt;br/&gt;owner = DISO-CIHT&lt;br/&gt;members unchanged]:::action
-    RRGFIB -- No: condition not satisfied --&gt; RRNoMatch[❓ Gap / no matching rule&lt;br/&gt;preserve current owner/members]:::gap
+    RRGFIB -- No: condition not satisfied --&gt; RRImpactZero{impact_rating == 0?}:::decision
+    RRImpactZero -- Yes: impact 0 --&gt; RRGWMUSZero{CBD == GWM US?}:::decision
+    RRGWMUSZero -- Yes --&gt; RRGWMUSZeroOwner[Criteria 6&lt;br/&gt;impact 0 exception&lt;br/&gt;owner = DISO-GWM US&lt;br/&gt;members unchanged]:::action
+    RRGWMUSZero -- No --&gt; RRCIHTZero[Criteria 6&lt;br/&gt;impact 0 default&lt;br/&gt;owner = DISO-CIHT&lt;br/&gt;members unchanged]:::action
+    RRImpactZero -- No: impact 1-2 but CBD not routed --&gt; RRNoMatch[❓ Gap / no matching rule&lt;br/&gt;preserve current owner/members]:::gap
 
     Criteria5 --&gt; End([Apply changes and write audit]):::start
     SkipAuto --&gt; End
@@ -242,6 +251,8 @@
     RRC4B --&gt; End
     RRBusinessOwner --&gt; End
     RRCIHT --&gt; End
+    RRGWMUSZeroOwner --&gt; End
+    RRCIHTZero --&gt; End
     RRNoMatch --&gt; End</pre></details>
     <details class="card"><summary>Raw validation JSON</summary><pre>{
   &quot;rules&quot;: [
@@ -320,6 +331,36 @@
           &quot;_existing_members&quot;,
           &quot;CIHT&quot;
         ]
+      },
+      &quot;locks&quot;: {}
+    },
+    {
+      &quot;name&quot;: &quot;Criteria 6 - Triage missing CBD routes to CIHT&quot;,
+      &quot;priority&quot;: 880,
+      &quot;phase&quot;: &quot;Triage&quot;,
+      &quot;conditions&quot;: {
+        &quot;cbd&quot;: {
+          &quot;operator&quot;: &quot;missing&quot;,
+          &quot;value&quot;: true
+        }
+      },
+      &quot;assignment&quot;: {
+        &quot;owner&quot;: &quot;DISO-CIHT&quot;
+      },
+      &quot;locks&quot;: {}
+    },
+    {
+      &quot;name&quot;: &quot;Criteria 6 - Response and Recovery missing CBD routes to CIHT&quot;,
+      &quot;priority&quot;: 880,
+      &quot;phase&quot;: &quot;Response and Recovery&quot;,
+      &quot;conditions&quot;: {
+        &quot;cbd&quot;: {
+          &quot;operator&quot;: &quot;missing&quot;,
+          &quot;value&quot;: true
+        }
+      },
+      &quot;assignment&quot;: {
+        &quot;owner&quot;: &quot;DISO-CIHT&quot;
       },
       &quot;locks&quot;: {}
     },
@@ -506,6 +547,31 @@
       &quot;locks&quot;: {}
     },
     {
+      &quot;name&quot;: &quot;Criteria 6 - Response and Recovery impact 0 GWM US owner&quot;,
+      &quot;priority&quot;: 620,
+      &quot;phase&quot;: &quot;Response and Recovery&quot;,
+      &quot;conditions&quot;: {
+        &quot;cbd&quot;: &quot;GWM US&quot;,
+        &quot;impact_rating&quot;: 0
+      },
+      &quot;assignment&quot;: {
+        &quot;owner&quot;: &quot;DISO-GWM US&quot;
+      },
+      &quot;locks&quot;: {}
+    },
+    {
+      &quot;name&quot;: &quot;Criteria 6 - Response and Recovery impact 0 default CIHT owner&quot;,
+      &quot;priority&quot;: 600,
+      &quot;phase&quot;: &quot;Response and Recovery&quot;,
+      &quot;conditions&quot;: {
+        &quot;impact_rating&quot;: 0
+      },
+      &quot;assignment&quot;: {
+        &quot;owner&quot;: &quot;DISO-CIHT&quot;
+      },
+      &quot;locks&quot;: {}
+    },
+    {
       &quot;name&quot;: &quot;Criteria 1 - Triage GWM US owner&quot;,
       &quot;priority&quot;: 500,
       &quot;phase&quot;: &quot;Triage&quot;,
@@ -534,15 +600,7 @@
   &quot;findings&quot;: [
     {
       &quot;level&quot;: &quot;gap&quot;,
-      &quot;message&quot;: &quot;CBD missing when impact_rating is 3-5 is intentionally unresolved and shown as a question mark.&quot;
-    },
-    {
-      &quot;level&quot;: &quot;gap&quot;,
-      &quot;message&quot;: &quot;Impact rating is explicit numeric 0-5; impact_rating 0 has no Response and Recovery low-medium route unless another rule matches.&quot;
-    },
-    {
-      &quot;level&quot;: &quot;gap&quot;,
-      &quot;message&quot;: &quot;Response and Recovery CBD values outside AM/P&amp;C/GWM/GWM WMI/GF/IB below impact 3 are not explicitly routed.&quot;
+      &quot;message&quot;: &quot;Response and Recovery CBD values outside AM/P&amp;C/GWM/GWM WMI/GF/IB at impact 1-2 are not explicitly routed.&quot;
     },
     {
       &quot;level&quot;: &quot;gap&quot;,
@@ -561,7 +619,7 @@
       &quot;message&quot;: &quot;Criteria 5 vs impact_rating &gt;= 3 precedence is assumed: impact_rating 3-5 overrides manual transfer.&quot;
     }
   ],
-  &quot;gap_count&quot;: 7
+  &quot;gap_count&quot;: 5
 }</pre></details>
   </main>
   <div class="graph-modal" id="graphModal" aria-hidden="true" role="dialog" aria-label="Interactive workflow graph"><div class="graph-modal-toolbar"><div><strong>Interactive workflow graph</strong><div class="graph-modal-help">Wheel/trackpad to zoom, drag to pan, double-click to reset, Escape to close.</div></div><div class="graph-modal-controls"><button type="button" class="modal-button" id="zoomOutButton">−</button><button type="button" class="modal-button" id="zoomResetButton">Reset</button><button type="button" class="modal-button" id="zoomInButton">+</button><button type="button" class="modal-button" id="closeGraphButton">Close Esc</button></div></div><div class="graph-viewport" id="graphViewport"><div class="graph-canvas" id="graphCanvas"></div></div></div>
@@ -569,7 +627,7 @@
     import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
     mermaid.initialize({ startOnLoad:false, securityLevel:'loose', flowchart:{ htmlLabels:true, curve:'basis', nodeSpacing:28, rankSpacing:42 }, theme:'base', themeVariables:{ fontFamily:'Inter, ui-sans-serif, system-ui, sans-serif', primaryColor:'#eff6ff', primaryBorderColor:'#60a5fa', primaryTextColor:'#1f2937', lineColor:'#64748b', tertiaryColor:'#ffffff' }});
     await mermaid.run();
-    const workflowDefinition = "flowchart TD\n    classDef start fill:#ecfeff,stroke:#0891b2,color:#164e63,stroke-width:1px;\n    classDef decision fill:#fff7ed,stroke:#f97316,color:#7c2d12,stroke-width:1px;\n    classDef action fill:#ecfdf5,stroke:#10b981,color:#064e3b,stroke-width:1px;\n    classDef gap fill:#fef2f2,stroke:#ef4444,color:#7f1d1d,stroke-width:2px;\n    classDef skip fill:#f8fafc,stroke:#94a3b8,color:#334155,stroke-width:1px;\n    classDef lock fill:#eef2ff,stroke:#6366f1,color:#312e81,stroke-width:1px;\n\n    Start([Incident evaluated]):::start --> AssignmentMode{assignment_mode is Manual Override or Locked?}:::decision\n    AssignmentMode -- Yes --> SkipAuto[Skip automatic routing<br/>preserve current assignment]:::skip\n    AssignmentMode -- No --> HasLock{Existing owner lock?}:::decision\n\n    HasLock -- No --> ManualTransferCheck{Criteria 5 manual transfer owner<br/>DISO-CIHT or DISO-WMA<br/>and impact_rating in 0-2?}:::decision\n    HasLock -- Yes --> LockType{Lock type?}:::decision\n    LockType -- manual --> KeepManual[Keep manual lock<br/>owner protected]:::lock\n    LockType -- incident_lifetime --> KeepLifetime[Keep incident lifetime lock<br/>owner protected]:::lock\n    LockType -- condition_based --> ConditionStillMatches{Original lock rule still matches?}:::decision\n    LockType -- manual_transfer --> ManualLockHigh{impact_rating >= 3<br/>values 3-5?}:::decision\n    LockType -- unknown --> UnknownLock[\u2753 Unknown lock type<br/>not explicitly defined<br/>current code keeps lock]:::gap\n    ConditionStillMatches -- Yes --> KeepCondition[Keep condition lock<br/>owner protected]:::lock\n    ConditionStillMatches -- No --> ReleaseCondition[Release condition lock<br/>re-evaluate routing]:::lock\n    ManualLockHigh -- Yes: 3-5 --> ReleaseManualTransfer[Release manual_transfer lock<br/>allow impact_rating >= 3 routing]:::lock\n    ManualLockHigh -- No: 0-2 --> KeepManualTransfer[Keep manual_transfer lock<br/>owner protected]:::lock\n    ReleaseCondition --> ManualTransferCheck\n    ReleaseManualTransfer --> ManualTransferCheck\n    KeepManual --> LockedPath[Evaluate matching rules<br/>but owner cannot change while locked]:::lock\n    KeepLifetime --> LockedPath\n    KeepCondition --> LockedPath\n    KeepManualTransfer --> LockedPath\n    UnknownLock --> LockedPath\n    LockedPath --> PhaseCheck{Phase?}:::decision\n\n    ManualTransferCheck -- Yes: owner pair and 0-2 --> Criteria5[Criteria 5<br/>owner = current manual transfer owner<br/>DISO-CIHT or DISO-WMA<br/>set manual_transfer lock]:::action\n    ManualTransferCheck -- No: condition not satisfied --> PhaseCheck\n\n    PhaseCheck -- Triage --> TriageImpact{Triage: impact_rating >= 3<br/>values 3-5?}:::decision\n    PhaseCheck -- Response and Recovery --> RRImpact{Response and Recovery: impact_rating >= 3<br/>values 3-5?}:::decision\n    PhaseCheck -- Other phase --> OtherPhase[No rule match<br/>preserve current owner/members<br/>\u2753 completed/closed phase names not explicit]:::gap\n\n    TriageImpact -- Yes: 3-5 --> TriageCBDPresent{CBD present?}:::decision\n    TriageCBDPresent -- No --> TriageMissingCBD[\u2753 Missing CBD with impact_rating 3-5<br/>desired owner unknown<br/>no impact_rating >= 3 owner assigned]:::gap\n    TriageCBDPresent -- Yes --> TriageHigh[Criteria 2 impact_rating >= 3<br/>owner = DISO-cbd<br/>members = existing + CIHT]:::action\n    TriageImpact -- No: 0-2 --> TriageGFHold{CBD == GF<br/>and Criteria 4 hold?}:::decision\n    TriageGFHold -- causedby rule --> TriageC4A[Criteria 4<br/>causedby IT systems or Other third party<br/>owner = DISO-CIHT<br/>set condition_based lock]:::action\n    TriageGFHold -- causedby/type rule --> TriageC4B[Criteria 4<br/>causedby Employee or Other third party<br/>type cyber attack or cyber incident<br/>owner = DISO-CIHT<br/>set condition_based lock]:::action\n    TriageGFHold -- No --> TriageGWMUS{cbd == GWM US?}:::decision\n    TriageGWMUS -- Yes --> TriageGWMUSOwner[Criteria 1<br/>owner = DISO-GWM US]:::action\n    TriageGWMUS -- No --> TriageDefault[Criteria 1 fallback<br/>owner = DISO-CIHT]:::action\n\n    RRImpact -- Yes: 3-5 --> RRCBDPresent{CBD present?}:::decision\n    RRCBDPresent -- No --> RRMissingCBD[\u2753 Missing CBD with impact_rating 3-5<br/>desired owner unknown<br/>no impact_rating >= 3 owner assigned]:::gap\n    RRCBDPresent -- Yes --> RRHigh[Criteria 2 impact_rating >= 3<br/>owner = DISO-cbd<br/>members = existing + CIHT]:::action\n    RRImpact -- No: 0-2 --> RRGFHold{CBD == GF<br/>and Criteria 4 hold?}:::decision\n    RRGFHold -- causedby rule --> RRC4A[Criteria 4<br/>causedby IT systems or Other third party<br/>owner = DISO-CIHT<br/>set condition_based lock]:::action\n    RRGFHold -- causedby/type rule --> RRC4B[Criteria 4<br/>causedby Employee or Other third party<br/>type cyber attack or cyber incident<br/>owner = DISO-CIHT<br/>set condition_based lock]:::action\n    RRGFHold -- No --> RRBusiness{CBD in AM/P&C/GWM/GWM WMI<br/>and impact_rating in 1-2?}:::decision\n    RRBusiness -- Yes: condition satisfied --> RRBusinessOwner[Criteria 2<br/>AM \u2192 DISO-AM<br/>P&C \u2192 DISO-P&C<br/>GWM \u2192 DISO-GWM WMI<br/>GWM WMI \u2192 DISO-GWM WMI<br/>members = existing + CIHT]:::action\n    RRBusiness -- No: condition not satisfied --> RRGFIB{CBD is GF or IB<br/>and impact_rating in 1-2?}:::decision\n    RRGFIB -- Yes: condition satisfied --> RRCIHT[Criteria 2<br/>owner = DISO-CIHT<br/>members unchanged]:::action\n    RRGFIB -- No: condition not satisfied --> RRNoMatch[\u2753 Gap / no matching rule<br/>preserve current owner/members]:::gap\n\n    Criteria5 --> End([Apply changes and write audit]):::start\n    SkipAuto --> End\n    OtherPhase --> End\n    TriageMissingCBD --> End\n    TriageHigh --> End\n    TriageC4A --> End\n    TriageC4B --> End\n    TriageGWMUSOwner --> End\n    TriageDefault --> End\n    RRMissingCBD --> End\n    RRHigh --> End\n    RRC4A --> End\n    RRC4B --> End\n    RRBusinessOwner --> End\n    RRCIHT --> End\n    RRNoMatch --> End";
+    const workflowDefinition = "flowchart TD\n    classDef start fill:#ecfeff,stroke:#0891b2,color:#164e63,stroke-width:1px;\n    classDef decision fill:#fff7ed,stroke:#f97316,color:#7c2d12,stroke-width:1px;\n    classDef action fill:#ecfdf5,stroke:#10b981,color:#064e3b,stroke-width:1px;\n    classDef gap fill:#fef2f2,stroke:#ef4444,color:#7f1d1d,stroke-width:2px;\n    classDef skip fill:#f8fafc,stroke:#94a3b8,color:#334155,stroke-width:1px;\n    classDef lock fill:#eef2ff,stroke:#6366f1,color:#312e81,stroke-width:1px;\n\n    Start([Incident evaluated]):::start --> AssignmentMode{assignment_mode is Manual Override or Locked?}:::decision\n    AssignmentMode -- Yes --> SkipAuto[Skip automatic routing<br/>preserve current assignment]:::skip\n    AssignmentMode -- No --> HasLock{Existing owner lock?}:::decision\n\n    HasLock -- No --> ManualTransferCheck{Criteria 5 manual transfer owner<br/>DISO-CIHT or DISO-WMA<br/>and impact_rating in 0-2?}:::decision\n    HasLock -- Yes --> LockType{Lock type?}:::decision\n    LockType -- manual --> KeepManual[Keep manual lock<br/>owner protected]:::lock\n    LockType -- incident_lifetime --> KeepLifetime[Keep incident lifetime lock<br/>owner protected]:::lock\n    LockType -- condition_based --> ConditionStillMatches{Original lock rule still matches?}:::decision\n    LockType -- manual_transfer --> ManualLockHigh{impact_rating >= 3<br/>values 3-5?}:::decision\n    ConditionStillMatches -- Yes --> KeepCondition[Keep condition lock<br/>owner protected]:::lock\n    ConditionStillMatches -- No --> ReleaseCondition[Release condition lock<br/>re-evaluate routing]:::lock\n    ManualLockHigh -- Yes: 3-5 --> ReleaseManualTransfer[Release manual_transfer lock<br/>allow impact_rating >= 3 routing]:::lock\n    ManualLockHigh -- No: 0-2 --> KeepManualTransfer[Keep manual_transfer lock<br/>owner protected]:::lock\n    ReleaseCondition --> ManualTransferCheck\n    ReleaseManualTransfer --> ManualTransferCheck\n    KeepManual --> LockedPath[Evaluate matching rules<br/>but owner cannot change while locked]:::lock\n    KeepLifetime --> LockedPath\n    KeepCondition --> LockedPath\n    KeepManualTransfer --> LockedPath\n    LockedPath --> PhaseCheck{Phase?}:::decision\n\n    ManualTransferCheck -- Yes: owner pair and 0-2 --> Criteria5[Criteria 5<br/>owner = current manual transfer owner<br/>DISO-CIHT or DISO-WMA<br/>set manual_transfer lock]:::action\n    ManualTransferCheck -- No: condition not satisfied --> PhaseCheck\n\n    PhaseCheck -- Triage --> TriageImpact{Triage: impact_rating >= 3<br/>values 3-5?}:::decision\n    PhaseCheck -- Response and Recovery --> RRImpact{Response and Recovery: impact_rating >= 3<br/>values 3-5?}:::decision\n    PhaseCheck -- Other phase --> OtherPhase[No rule match<br/>preserve current owner/members<br/>\u2753 completed/closed phase names not explicit]:::gap\n\n    TriageImpact -- Yes: 3-5 --> TriageCBDPresent{CBD present?}:::decision\n    TriageCBDPresent -- No --> TriageMissingCBD[Criteria 6<br/>missing CBD<br/>owner = DISO-CIHT<br/>members unchanged]:::action\n    TriageCBDPresent -- Yes --> TriageHigh[Criteria 2 impact_rating >= 3<br/>owner = DISO-cbd<br/>members = existing + CIHT]:::action\n    TriageImpact -- No: 0-2 --> TriageGFHold{CBD == GF<br/>and Criteria 4 hold?}:::decision\n    TriageGFHold -- causedby rule --> TriageC4A[Criteria 4<br/>causedby IT systems or Other third party<br/>owner = DISO-CIHT<br/>set condition_based lock]:::action\n    TriageGFHold -- causedby/type rule --> TriageC4B[Criteria 4<br/>causedby Employee or Other third party<br/>type cyber attack or cyber incident<br/>owner = DISO-CIHT<br/>set condition_based lock]:::action\n    TriageGFHold -- No --> TriageGWMUS{cbd == GWM US?}:::decision\n    TriageGWMUS -- Yes --> TriageGWMUSOwner[Criteria 1<br/>owner = DISO-GWM US]:::action\n    TriageGWMUS -- No --> TriageDefault[Criteria 1 fallback<br/>owner = DISO-CIHT]:::action\n\n    RRImpact -- Yes: 3-5 --> RRCBDPresent{CBD present?}:::decision\n    RRCBDPresent -- No --> RRMissingCBD[Criteria 6<br/>missing CBD<br/>owner = DISO-CIHT<br/>members unchanged]:::action\n    RRCBDPresent -- Yes --> RRHigh[Criteria 2 impact_rating >= 3<br/>owner = DISO-cbd<br/>members = existing + CIHT]:::action\n    RRImpact -- No: 0-2 --> RRGFHold{CBD == GF<br/>and Criteria 4 hold?}:::decision\n    RRGFHold -- causedby rule --> RRC4A[Criteria 4<br/>causedby IT systems or Other third party<br/>owner = DISO-CIHT<br/>set condition_based lock]:::action\n    RRGFHold -- causedby/type rule --> RRC4B[Criteria 4<br/>causedby Employee or Other third party<br/>type cyber attack or cyber incident<br/>owner = DISO-CIHT<br/>set condition_based lock]:::action\n    RRGFHold -- No --> RRBusiness{CBD in AM/P&C/GWM/GWM WMI<br/>and impact_rating in 1-2?}:::decision\n    RRBusiness -- Yes: condition satisfied --> RRBusinessOwner[Criteria 2<br/>AM \u2192 DISO-AM<br/>PandC \u2192 DISO-PandC<br/>GWM \u2192 DISO-GWM WMI<br/>GWM WMI \u2192 DISO-GWM WMI<br/>members = existing + CIHT]:::action\n    RRBusiness -- No: condition not satisfied --> RRGFIB{CBD is GF or IB<br/>and impact_rating in 1-2?}:::decision\n    RRGFIB -- Yes: condition satisfied --> RRCIHT[Criteria 2<br/>owner = DISO-CIHT<br/>members unchanged]:::action\n    RRGFIB -- No: condition not satisfied --> RRImpactZero{impact_rating == 0?}:::decision\n    RRImpactZero -- Yes: impact 0 --> RRGWMUSZero{CBD == GWM US?}:::decision\n    RRGWMUSZero -- Yes --> RRGWMUSZeroOwner[Criteria 6<br/>impact 0 exception<br/>owner = DISO-GWM US<br/>members unchanged]:::action\n    RRGWMUSZero -- No --> RRCIHTZero[Criteria 6<br/>impact 0 default<br/>owner = DISO-CIHT<br/>members unchanged]:::action\n    RRImpactZero -- No: impact 1-2 but CBD not routed --> RRNoMatch[\u2753 Gap / no matching rule<br/>preserve current owner/members]:::gap\n\n    Criteria5 --> End([Apply changes and write audit]):::start\n    SkipAuto --> End\n    OtherPhase --> End\n    TriageMissingCBD --> End\n    TriageHigh --> End\n    TriageC4A --> End\n    TriageC4B --> End\n    TriageGWMUSOwner --> End\n    TriageDefault --> End\n    RRMissingCBD --> End\n    RRHigh --> End\n    RRC4A --> End\n    RRC4B --> End\n    RRBusinessOwner --> End\n    RRCIHT --> End\n    RRGWMUSZeroOwner --> End\n    RRCIHTZero --> End\n    RRNoMatch --> End";
     let renderCounter = 0, scale = 1, translateX = 0, translateY = 0, isDragging = false, lastPointerX = 0, lastPointerY = 0;
     const graphCard = document.getElementById('graphCard'), openGraphButton = document.getElementById('openGraphButton'), modal = document.getElementById('graphModal'), viewport = document.getElementById('graphViewport'), canvas = document.getElementById('graphCanvas'), closeGraphButton = document.getElementById('closeGraphButton'), zoomInButton = document.getElementById('zoomInButton'), zoomOutButton = document.getElementById('zoomOutButton'), zoomResetButton = document.getElementById('zoomResetButton');
     const nodeHelp = [
@@ -583,7 +641,7 @@
       { text: 'incident lifetime lock', title: 'Incident-lifetime lock', tip: 'Protects the owner for the life of the incident unless an authorized user/admin explicitly clears it.' },
       { text: 'Criteria 2', title: 'Criteria 2 routing', tip: 'Handles Response and Recovery ownership and impact escalation. Impact 3-5 routes to the CBD owner and adds CIHT as a member. Impact 1-2 uses the configured business-owner or CIHT rules.' },
       { text: 'Criteria 1', title: 'Criteria 1 Triage fallback', tip: 'Low-impact Triage routes GWM US to its owner and all other CBDs to CIHT unless another higher-priority rule matches.' },
-      { text: 'Unknown lock type', title: 'Unknown lock type', tip: 'Conservative behavior: the current code keeps the lock and does not automatically change the owner.' }
+      { text: 'Criteria 6', title: 'Criteria 6 impact 0 / missing CBD routing', tip: 'In active phases, impact 0 routes to CIHT by default. GWM US is the exception and routes to DISO-GWM US. If CBD is missing/unknown, owner routes to CIHT. Closed/completed phases still preserve current assignment.' }
     ];
     const tooltip = document.createElement('div');
     tooltip.className = 'node-tooltip';

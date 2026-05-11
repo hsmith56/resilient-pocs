@@ -228,6 +228,8 @@ Responsible for:
 - Criteria 2 impact `>= 3` escalation routing in active phases.
 - Criteria 3 phase/lifecycle re-evaluation.
 - Criteria 4 GF CIHT hold and `condition_based` locks.
+- Criteria 6 impact `0` active-phase routing to `DISO-CIHT`, except `GWM US` routes to `DISO-GWM US`.
+- Criteria 6 missing/unknown CBD active-phase routing to `DISO-CIHT`.
 - Criteria 5 CIHT/WMA manual-transfer preservation.
 - Respecting existing `manual`, `manual_transfer`, `condition_based`, and `incident_lifetime` locks.
 - Releasing `condition_based` locks when their original rule no longer matches.
@@ -282,13 +284,15 @@ Confirmed:
 - Criteria 2 impact `>= 3` routing is represented in both Triage and Response and Recovery.
 - Criteria 4 GF CIHT hold is represented in both active phases and sets `condition_based` lock.
 - Criteria 5 CIHT/WMA manual-transfer preservation is represented and sets `manual_transfer` lock if detected by the router.
+- Criteria 6 impact `0` routing is represented for Response and Recovery; Triage impact `0` behavior is already covered by Criteria 1 Triage rules.
+- Criteria 6 missing/unknown CBD routing is represented in active phases and assigns `DISO-CIHT`.
 - No ruleset rule automatically sets `manual` or `incident_lifetime`, which is correct. `manual` is set only by `manual_transfer.py` when users explicitly protect a non-CIHT/WMA transfer.
 
 Known accepted gaps still present:
 
-- Missing CBD when impact is `3-5` does not produce `DISO-{cbd}` owner.
-- Response and Recovery impact `0` has no low/medium routing unless Criteria 4 matches.
-- Response and Recovery CBD outside configured values at impact `0-2` has no route.
+- Missing CBD now routes to `DISO-CIHT` in active phases.
+- Response and Recovery impact `0` now routes by Criteria 6: `DISO-CIHT` default, `DISO-GWM US` exception.
+- Response and Recovery CBD outside configured values at impact `1-2` has no route.
 - Exact case-sensitive matching is used.
 
 ### `resilient_example_script.py`

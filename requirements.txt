@@ -1,9 +1,11 @@
 criteria 1
     in Triage phase:
         if incident.properties.cbd == "GWM US" then set owner to "DISO-GWM US"
-        else set owner to "DISO-CIHT"
+        else 
+            if impacting rating is 0, CBD 
+            else if impact rating 1 or 2 set owner to "DISO-CIHT" 
 
-        if incident.properties.impact_rating >= 3 then ownership immediately transfer as per criteria in critera 2
+            else if incident.properties.impact_rating >= 3 then ownership set to respective DISO (f"DISO-{incident.properties.cbd}")
 
 criteria 2
     if response and recovery phase:
@@ -27,3 +29,7 @@ criteria 4
 
 criteria 5
     if need to transfer case from "CIHT" to "DISO-WMA" or from "DISO-WMA" to "CIHT" the logic set for the new owner should apply for the rest of the case lifecycle (extra clarification: if ownership is changed respective to CIHT or DISO-WMA then case should not bounce back to original owner at the later stages of the case)
+
+cirteria 6
+    if the impact rating is 0, the owner will always be "CIHT" except in case of incident.properties.cbd == "GWM US"
+    if the cbd is unknown, then the owner will be set to "CIHT"

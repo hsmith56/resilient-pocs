@@ -98,6 +98,7 @@ HTML_TEMPLATE = Template(r"""<!doctype html>
         <div class="context-item" id="criteria-5-guide"><h3>Criteria 5 CIHT/WMA manual transfer lock</h3><p>When the router sees a manual transfer between CIHT and WMA while impact is 0-2, it preserves the new owner and automatically sets a manual-transfer lock for the case lifecycle. It breaks automatically if impact becomes 3-5 so escalation routing can apply.</p></div>
         <div class="context-item" id="manual-lock-guide"><h3>Manual / incident-lifetime locks</h3><p>These locks protect the current owner from automatic owner changes. They are not released by normal rule evaluation; an authorized user/admin must clear the lock fields or change the assignment mode/process that set them.</p></div>
         <div class="context-item" id="assignment-mode-guide"><h3>Assignment mode skip</h3><p>If assignment mode is Manual Override or Locked, the router skips automatic routing entirely and preserves current owner, members, workspace, and lock state. Clear assignment mode to allow automatic routing again.</p></div>
+        <div class="context-item" id="criteria-6-guide"><h3>Criteria 6 impact 0 / missing CBD routing</h3><p>In active phases, impact 0 routes to CIHT by default. GWM US remains the exception and routes to DISO-GWM US. If CBD is missing/unknown, owner routes to CIHT. Closed/completed phases still preserve current assignment.</p></div>
       </div>
     </section>
     <section class="graph-card" id="graphCard"><div class="graph-hint"><span>Click the workflow graph to open an interactive view. Mouse wheel zooms, drag pans, Escape closes. Hover criteria/lock nodes for plain-English help.</span><button type="button" class="open-graph-button" id="openGraphButton">Open interactive graph</button></div><div class="mermaid" id="workflowMermaid">$mermaid_graph</div></section>
@@ -123,7 +124,7 @@ HTML_TEMPLATE = Template(r"""<!doctype html>
       { text: 'incident lifetime lock', title: 'Incident-lifetime lock', tip: 'Protects the owner for the life of the incident unless an authorized user/admin explicitly clears it.' },
       { text: 'Criteria 2', title: 'Criteria 2 routing', tip: 'Handles Response and Recovery ownership and impact escalation. Impact 3-5 routes to the CBD owner and adds CIHT as a member. Impact 1-2 uses the configured business-owner or CIHT rules.' },
       { text: 'Criteria 1', title: 'Criteria 1 Triage fallback', tip: 'Low-impact Triage routes GWM US to its owner and all other CBDs to CIHT unless another higher-priority rule matches.' },
-      { text: 'Unknown lock type', title: 'Unknown lock type', tip: 'Conservative behavior: the current code keeps the lock and does not automatically change the owner.' }
+      { text: 'Criteria 6', title: 'Criteria 6 impact 0 / missing CBD routing', tip: 'In active phases, impact 0 routes to CIHT by default. GWM US is the exception and routes to DISO-GWM US. If CBD is missing/unknown, owner routes to CIHT. Closed/completed phases still preserve current assignment.' }
     ];
     const tooltip = document.createElement('div');
     tooltip.className = 'node-tooltip';
@@ -184,9 +185,7 @@ def validate_ruleset(module: Any) -> Dict[str, Any]:
             if isinstance(condition, dict) and condition.get("operator") not in SUPPORTED_OPERATORS:
                 findings.append({"level": "error", "message": f"Rule {rule.get('name')!r} has unsupported operator {condition.get('operator')!r} on {field!r}."})
     gaps = [
-        "CBD missing when impact_rating is 3-5 is intentionally unresolved and shown as a question mark.",
-        "Impact rating is explicit numeric 0-5; impact_rating 0 has no Response and Recovery low-medium route unless another rule matches.",
-        "Response and Recovery CBD values outside AM/P&C/GWM/GWM WMI/GF/IB below impact 3 are not explicitly routed.",
+        "Response and Recovery CBD values outside AM/P&C/GWM/GWM WMI/GF/IB at impact 1-2 are not explicitly routed.",
         "Exact completed/closed phase names are not defined; non-active phases preserve current assignment.",
         "Field value case normalization is not defined; current routing uses exact matching.",
         "Criteria 5 manual transfer is inferred from router state rather than true event history.",
@@ -218,7 +217,6 @@ def make_mermaid(module: Any) -> str:
     LockType -- incident_lifetime --> KeepLifetime[Keep incident lifetime lock<br/>owner protected]:::lock
     LockType -- condition_based --> ConditionStillMatches{{Original lock rule still matches?}}:::decision
     LockType -- manual_transfer --> ManualLockHigh{{impact_rating >= 3<br/>values 3-5?}}:::decision
-    LockType -- unknown --> UnknownLock[❓ Unknown lock type<br/>not explicitly defined<br/>current code keeps lock]:::gap
     ConditionStillMatches -- Yes --> KeepCondition[Keep condition lock<br/>owner protected]:::lock
     ConditionStillMatches -- No --> ReleaseCondition[Release condition lock<br/>re-evaluate routing]:::lock
     ManualLockHigh -- Yes: 3-5 --> ReleaseManualTransfer[Release manual_transfer lock<br/>allow impact_rating >= 3 routing]:::lock
@@ -229,7 +227,6 @@ def make_mermaid(module: Any) -> str:
     KeepLifetime --> LockedPath
     KeepCondition --> LockedPath
     KeepManualTransfer --> LockedPath
-    UnknownLock --> LockedPath
     LockedPath --> PhaseCheck{{Phase?}}:::decision
 
     ManualTransferCheck -- Yes: owner pair and 0-2 --> Criteria5[Criteria 5<br/>owner = current manual transfer owner<br/>DISO-CIHT or DISO-WMA<br/>set manual_transfer lock]:::action
@@ -240,7 +237,7 @@ def make_mermaid(module: Any) -> str:
     PhaseCheck -- Other phase --> OtherPhase[No rule match<br/>preserve current owner/members<br/>❓ completed/closed phase names not explicit]:::gap
 
     TriageImpact -- Yes: 3-5 --> TriageCBDPresent{{CBD present?}}:::decision
-    TriageCBDPresent -- No --> TriageMissingCBD[❓ Missing CBD with impact_rating 3-5<br/>desired owner unknown<br/>no impact_rating >= 3 owner assigned]:::gap
+    TriageCBDPresent -- No --> TriageMissingCBD[Criteria 6<br/>missing CBD<br/>owner = DISO-CIHT<br/>members unchanged]:::action
     TriageCBDPresent -- Yes --> TriageHigh[Criteria 2 impact_rating >= 3<br/>owner = DISO-cbd<br/>members = existing + CIHT]:::action
     TriageImpact -- No: 0-2 --> TriageGFHold{{CBD == GF<br/>and Criteria 4 hold?}}:::decision
     TriageGFHold -- causedby rule --> TriageC4A[Criteria 4<br/>causedby IT systems or Other third party<br/>owner = DISO-CIHT<br/>set condition_based lock]:::action
@@ -250,7 +247,7 @@ def make_mermaid(module: Any) -> str:
     TriageGWMUS -- No --> TriageDefault[Criteria 1 fallback<br/>owner = DISO-CIHT]:::action
 
     RRImpact -- Yes: 3-5 --> RRCBDPresent{{CBD present?}}:::decision
-    RRCBDPresent -- No --> RRMissingCBD[❓ Missing CBD with impact_rating 3-5<br/>desired owner unknown<br/>no impact_rating >= 3 owner assigned]:::gap
+    RRCBDPresent -- No --> RRMissingCBD[Criteria 6<br/>missing CBD<br/>owner = DISO-CIHT<br/>members unchanged]:::action
     RRCBDPresent -- Yes --> RRHigh[Criteria 2 impact_rating >= 3<br/>owner = DISO-cbd<br/>members = existing + CIHT]:::action
     RRImpact -- No: 0-2 --> RRGFHold{{CBD == GF<br/>and Criteria 4 hold?}}:::decision
     RRGFHold -- causedby rule --> RRC4A[Criteria 4<br/>causedby IT systems or Other third party<br/>owner = DISO-CIHT<br/>set condition_based lock]:::action
@@ -259,7 +256,11 @@ def make_mermaid(module: Any) -> str:
     RRBusiness -- Yes: condition satisfied --> RRBusinessOwner[Criteria 2<br/>{business_lines}<br/>members = existing + CIHT]:::action
     RRBusiness -- No: condition not satisfied --> RRGFIB{{CBD is GF or IB<br/>and impact_rating in 1-2?}}:::decision
     RRGFIB -- Yes: condition satisfied --> RRCIHT[Criteria 2<br/>owner = DISO-CIHT<br/>members unchanged]:::action
-    RRGFIB -- No: condition not satisfied --> RRNoMatch[❓ Gap / no matching rule<br/>preserve current owner/members]:::gap
+    RRGFIB -- No: condition not satisfied --> RRImpactZero{{impact_rating == 0?}}:::decision
+    RRImpactZero -- Yes: impact 0 --> RRGWMUSZero{{CBD == GWM US?}}:::decision
+    RRGWMUSZero -- Yes --> RRGWMUSZeroOwner[Criteria 6<br/>impact 0 exception<br/>owner = DISO-GWM US<br/>members unchanged]:::action
+    RRGWMUSZero -- No --> RRCIHTZero[Criteria 6<br/>impact 0 default<br/>owner = DISO-CIHT<br/>members unchanged]:::action
+    RRImpactZero -- No: impact 1-2 but CBD not routed --> RRNoMatch[❓ Gap / no matching rule<br/>preserve current owner/members]:::gap
 
     Criteria5 --> End([Apply changes and write audit]):::start
     SkipAuto --> End
@@ -276,6 +277,8 @@ def make_mermaid(module: Any) -> str:
     RRC4B --> End
     RRBusinessOwner --> End
     RRCIHT --> End
+    RRGWMUSZeroOwner --> End
+    RRCIHTZero --> End
     RRNoMatch --> End"""
 
 

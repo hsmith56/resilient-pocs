@@ -9,7 +9,8 @@ Assumptions applied from the ambiguous requirements:
 - The CIHT owner is represented consistently as ``DISO-CIHT`` where the criteria
   use either ``CIHT`` or ``DISO-CIHT``.
 - The member added by escalation rules is represented as ``CIHT``.
-- In Triage, CBD ``GWM US`` maps to owner ``DISO-GWM US``.
+- In active phases, CBD ``GWM US`` with impact 0 maps to owner ``DISO-GWM US``.
+- In Triage, CBD ``GWM US`` with impact 1-2 maps to owner ``DISO-GWM US``.
 - In Response and Recovery low/medium impact routing, CBD ``GWM`` and
   ``GWM WMI`` map to owner ``DISO-GWM WMI``.
 - For impact_rating >= 3, ownership uses the explicit high-impact formula
@@ -21,8 +22,9 @@ Assumptions applied from the ambiguous requirements:
   not high-impact.
 - Criteria 5 manual transfer protection is driven by the current/last router
   owner state maintained by the script.
-- Missing CBD for high-impact routing is intentionally not assigned here because
-  the desired behavior is unknown and is marked as a question in the flow doc.
+- Criteria 6 impact 0 routing applies in active phases only so completed/closed
+  phases still preserve current assignment.
+- Missing/unknown CBD routes to ``DISO-CIHT`` in active phases.
 """
 
 # Marker used inside a rule's member list to mean "keep current members, then add
@@ -129,6 +131,36 @@ ROUTING_RULES = [
                 EXISTING_MEMBERS,
                 MEMBER_CIHT,
             ],
+        },
+        "locks": {},
+    },
+    {
+        "name": "Criteria 6 - Triage missing CBD routes to CIHT",
+        "priority": 880,
+        "phase": TRIAGE_PHASE,
+        "conditions": {
+            "cbd": {
+                "operator": "missing",
+                "value": True,
+            },
+        },
+        "assignment": {
+            "owner": OWNER_CIHT,
+        },
+        "locks": {},
+    },
+    {
+        "name": "Criteria 6 - Response and Recovery missing CBD routes to CIHT",
+        "priority": 880,
+        "phase": RESPONSE_RECOVERY_PHASE,
+        "conditions": {
+            "cbd": {
+                "operator": "missing",
+                "value": True,
+            },
+        },
+        "assignment": {
+            "owner": OWNER_CIHT,
         },
         "locks": {},
     },
@@ -268,6 +300,31 @@ ROUTING_RULES = [
                 "operator": "in",
                 "value": [1, 2],
             },
+        },
+        "assignment": {
+            "owner": OWNER_CIHT,
+        },
+        "locks": {},
+    },
+    {
+        "name": "Criteria 6 - Response and Recovery impact 0 GWM US owner",
+        "priority": 620,
+        "phase": RESPONSE_RECOVERY_PHASE,
+        "conditions": {
+            "cbd": "GWM US",
+            "impact_rating": 0,
+        },
+        "assignment": {
+            "owner": "DISO-GWM US",
+        },
+        "locks": {},
+    },
+    {
+        "name": "Criteria 6 - Response and Recovery impact 0 default CIHT owner",
+        "priority": 600,
+        "phase": RESPONSE_RECOVERY_PHASE,
+        "conditions": {
+            "impact_rating": 0,
         },
         "assignment": {
             "owner": OWNER_CIHT,

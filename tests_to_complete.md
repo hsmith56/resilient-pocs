@@ -105,7 +105,7 @@ Run these with phase `Triage` and each impact value `3`, `4`, and `5`.
 - [ ] SOAR-021 CBD `GWM US` -> owner becomes `DISO-GWM US`; existing members plus `CIHT`; this confirms `impact_rating >= 3` routing takes precedence over the normal Triage GWM US rule.
 - [ ] SOAR-022 CBD `WMA` -> owner becomes `DISO-WMA`; existing members plus `CIHT`.
 - [ ] SOAR-023 Any other non-blank CBD value -> owner becomes `DISO-{CBD}`; existing members plus `CIHT`, assuming that owner exists in SOAR.
-- [ ] SOAR-024 CBD blank/missing with impact `3`, `4`, or `5` -> no automatic high-impact owner is assigned; current owner and members are preserved; audit/status shows no matching route or gap behavior.
+- [ ] SOAR-024 CBD blank/missing with impact `3`, `4`, or `5` -> Criteria 6 missing CBD rule applies; owner becomes `DISO-CIHT`; members unchanged.
 
 ## 3. Response and Recovery phase routing scenarios
 
@@ -128,13 +128,16 @@ Run these with phase `Response and Recovery` and each impact value `1` and `2`.
 
 Run these with phase `Response and Recovery` and impact `0`.
 
-- [ ] SOAR-035 CBD `AM` -> no low/medium owner route; current owner and members are preserved.
-- [ ] SOAR-036 CBD `P&C` -> no low/medium owner route; current owner and members are preserved.
-- [ ] SOAR-037 CBD `GWM` -> no low/medium owner route; current owner and members are preserved.
-- [ ] SOAR-038 CBD `GWM WMI` -> no low/medium owner route; current owner and members are preserved.
-- [ ] SOAR-039 CBD `GF`, no Criteria 4 hold condition -> no GF/IB impact `1-2` route; current owner and members are preserved.
-- [ ] SOAR-040 CBD `IB` -> no GF/IB impact `1-2` route; current owner and members are preserved.
+- [ ] SOAR-035 CBD `AM` -> Criteria 6 impact 0 default applies; owner becomes `DISO-CIHT`; members unchanged.
+- [ ] SOAR-036 CBD `P&C` -> Criteria 6 impact 0 default applies; owner becomes `DISO-CIHT`; members unchanged.
+- [ ] SOAR-037 CBD `GWM` -> Criteria 6 impact 0 default applies; owner becomes `DISO-CIHT`; members unchanged.
+- [ ] SOAR-038 CBD `GWM WMI` -> Criteria 6 impact 0 default applies; owner becomes `DISO-CIHT`; members unchanged.
+- [ ] SOAR-039 CBD `GF`, no Criteria 4 hold condition -> Criteria 6 impact 0 default applies; owner becomes `DISO-CIHT`; members unchanged.
+- [ ] SOAR-040 CBD `IB` -> Criteria 6 impact 0 default applies; owner becomes `DISO-CIHT`; members unchanged.
 - [ ] SOAR-041 CBD `GF` with Criteria 4 hold condition -> Criteria 4 still applies because impact `0` does not satisfy `impact_rating >= 3`; owner becomes `DISO-CIHT` and condition-based lock is set.
+- [ ] SOAR-041A CBD `GWM US` -> Criteria 6 impact 0 exception applies; owner becomes `DISO-GWM US`; members unchanged.
+- [ ] SOAR-041B CBD blank/missing -> Criteria 6 impact 0 default applies; owner becomes `DISO-CIHT`; members unchanged.
+- [ ] SOAR-041C Any other CBD value -> Criteria 6 impact 0 default applies; owner becomes `DISO-CIHT`; members unchanged.
 
 ### 3.3 Response and Recovery impact `3`, `4`, or `5`
 
@@ -149,7 +152,7 @@ Run these with phase `Response and Recovery` and each impact value `3`, `4`, and
 - [ ] SOAR-048 CBD `GWM US` -> owner becomes `DISO-GWM US`; existing members plus `CIHT`.
 - [ ] SOAR-049 CBD `WMA` -> owner becomes `DISO-WMA`; existing members plus `CIHT`.
 - [ ] SOAR-050 Any other non-blank CBD value -> owner becomes `DISO-{CBD}`; existing members plus `CIHT`, assuming that owner exists in SOAR.
-- [ ] SOAR-051 CBD blank/missing with impact `3`, `4`, or `5` -> no automatic high-impact owner is assigned; current owner and members are preserved; audit/status shows no matching route or gap behavior.
+- [ ] SOAR-051 CBD blank/missing with impact `3`, `4`, or `5` -> Criteria 6 missing CBD rule applies; owner becomes `DISO-CIHT`; members unchanged.
 
 ## 4. Criteria 4 GF CIHT hold scenarios
 
@@ -257,10 +260,10 @@ These validate owner-lock protection visible in SOAR.
 
 These are known undefined/gap behaviors shown in the Mermaid graph. They must either be accepted as-is by the product owner or clarified before production signoff.
 
-- [ ] SOAR-120 Impact `3`, `4`, or `5` with missing CBD in `Triage` preserves current owner/members. Product owner accepts this behavior or supplies a new expected owner.
-- [ ] SOAR-121 Impact `3`, `4`, or `5` with missing CBD in `Response and Recovery` preserves current owner/members. Product owner accepts this behavior or supplies a new expected owner.
-- [ ] SOAR-122 Response and Recovery impact `0` for CBD `AM`, `P&C`, `GWM`, or `GWM WMI` preserves current owner/members. Product owner accepts this behavior or supplies a new expected owner.
-- [ ] SOAR-123 Response and Recovery impact `0` for CBD `GF` or `IB` without Criteria 4 conditions preserves current owner/members. Product owner accepts this behavior or supplies a new expected owner.
+- [ ] SOAR-120 Impact `3`, `4`, or `5` with missing CBD in `Triage` routes to `DISO-CIHT` with members unchanged. Product owner accepts Criteria 6 missing CBD behavior.
+- [ ] SOAR-121 Impact `3`, `4`, or `5` with missing CBD in `Response and Recovery` routes to `DISO-CIHT` with members unchanged. Product owner accepts Criteria 6 missing CBD behavior.
+- [ ] SOAR-122 Response and Recovery impact `0` for any CBD except `GWM US` routes to `DISO-CIHT` with members unchanged. Product owner accepts Criteria 6 behavior.
+- [ ] SOAR-123 Response and Recovery impact `0` for CBD `GWM US` routes to `DISO-GWM US` with members unchanged. Product owner accepts Criteria 6 exception behavior.
 - [ ] SOAR-124 Response and Recovery impact `1` or `2` for CBD outside `AM`, `P&C`, `GWM`, `GWM WMI`, `GF`, and `IB` preserves current owner/members. Product owner accepts this behavior or supplies a new expected owner.
 - [ ] SOAR-125 Closed/completed phase names are verified against the actual SOAR org configuration. Product owner confirms no routing should occur there except Criteria 5 if automation is run and manual-transfer conditions match.
 - [ ] SOAR-126 Product owner accepts that manual CIHT/WMA transfer protection is inferred from current owner plus `assignment_router_last_owner`, not from full SOAR owner-change event history.
