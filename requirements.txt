@@ -1,35 +1,30 @@
 criteria 1
     in Triage phase:
-        if incident.properties.cbd == "GWM US" then set owner to "DISO-GWM US"
-        else 
-            if impacting rating is 0, CBD 
-            else if impact rating 1 or 2 set owner to "DISO-CIHT" 
-
-            else if incident.properties.impact_rating >= 3 then ownership set to respective DISO (f"DISO-{incident.properties.cbd}")
+        if the cbd is unknown, then the owner will be set to "CIHT". Should be re-evaluated once cbd is set to a value
+        else if incident.properties.cbd == "GWM US" then set owner to "DISO-GWM US" for rest of lifecycle
+        else if incident.properties.impact_rating == 0 then set owner to "DISO-CIHT"
+        else if incident.properties.impact_rating == 1 or 2 then set owner to "DISO-CIHT"
+        else if incident.properties.impact_rating >= 3 then set owner to respective DISO (f"DISO-{incident.properties.cbd}")
 
 criteria 2
-    if response and recovery phase:
-        if incident.properties.cbd any of ["AM" or "P&C" or "GWM"] AND incident.properties.impact_rating >= 1 then set owner to respective "DISO-AM", "DISO-P&C", "DISO-GWM WMI" and members = "CIHT" + current members
-        if incident.properties.cbd any of ["GF" or "IB"] AND incident.properties.impact_rating == 1 or == 2 then set owner to "DISO-CIHT", members unchanged
-        if incident.properties.impact_rating >= 3 then set owner to f"DISO-{incident.properties.cbd}" and members = "CIHT" + current members
-
-        if the cbd is either AM, P&C, or GWM WMI... AND impact rating lower or equal to 2 then change ownership to respective f"DISO-{incident.properties.cbd}" and members = "CIHT" + current members 
-        if impact rating lower or equal to 2 and cbd is either GF or IB, owner = CIHT and members unchanged
-        every change of impact_rating to 3 or above should change the owner to respective f"DISO-{incident.properties.cbd}" and add "CIHT" to members
+    after Triage phase, including Response and Recovery and the rest of the incident lifecycle:
+        if incident.properties.cbd is any of ["AM", "P&C", "GWM", "GWM WMI"] and incident.properties.impact_rating is 1 or 2 then set owner to respective business DISO and members = "CIHT" + current members
+        if incident.properties.cbd is any of ["GF", "IB"] and incident.properties.impact_rating is 1 or 2 then set owner to "DISO-CIHT" and members unchanged
+        if incident.properties.impact_rating >= 3 then set owner to respective DISO (f"DISO-{incident.properties.cbd}") and members = "CIHT" + current members
+        if incident.properties.impact_rating == 0 then set owner to "DISO-CIHT" except when incident.properties.cbd == "GWM US"
 
 criteria 3
-    once all phase moves from triage to response and recovery, ownership changes respective to criteria 2
-    once response and recory complete, ownership should stay as is
-    once task closed, ownership stays as is
+    once phase moves out of Triage, ownership follows criteria 2 for the rest of the incident lifecycle
+    once Response and Recovery is complete, there is no separate ownership reset; the rest-of-lifecycle ownership remains as-is
+    once task is closed, there is no separate ownership reset; the rest-of-lifecycle ownership remains as-is
 
 criteria 4
-    owner should stay with CIHT in the below conditions unless impact rating is set to 3 or above or cbd is changed to anything other than "GF"
-    if the incident.properties.causedby = "IT systems" or "Other third party" then owner set to "CIHT"
-    if the incident.properties.causedby = "Employee" or "Other third party" AND incident.properties.type = "cyber attack" or "cyber incident" then owner set to "CIHT"
+    after Triage phase, owner should stay with CIHT in the below conditions unless impact rating is set to 3 or above or cbd is changed to anything other than "GF"
+    if incident.properties.causedby = "IT systems" or "Other third party" then owner set to "CIHT"
+    if incident.properties.causedby = "Employee" or "Other third party" and incident.properties.type = "cyber attack" or "cyber incident" then owner set to "CIHT"
 
 criteria 5
-    if need to transfer case from "CIHT" to "DISO-WMA" or from "DISO-WMA" to "CIHT" the logic set for the new owner should apply for the rest of the case lifecycle (extra clarification: if ownership is changed respective to CIHT or DISO-WMA then case should not bounce back to original owner at the later stages of the case)
+    if need to transfer case from "X" to "Y", the logic set for the new owner should apply for the rest of the case lifecycle, regardless of the original owner and the new owner
 
-cirteria 6
-    if the impact rating is 0, the owner will always be "CIHT" except in case of incident.properties.cbd == "GWM US"
-    if the cbd is unknown, then the owner will be set to "CIHT"
+criteria 6
+    if the impact rating is 0, the owner will always be "CIHT" except in case of incident.properties.cbd == "GWM US". This applies regardless of phase
