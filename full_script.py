@@ -1,13 +1,14 @@
+# Members handling is disabled for now.
 # Marker used inside a rule's member list to mean "keep current members, then add
 # the remaining configured members." This value is stripped before saving.
-EXISTING_MEMBERS = "_existing_members"
+# EXISTING_MEMBERS = "_existing_members"
 
 TRIAGE_PHASE = "Triage"
 
 OWNER_CIHT = "DISO-CIHT"
 OWNER_GWM_US = "DISO-GWM US"
 DEFAULT_CBD_BUSINESS_OWNER = "DISO-CIHT"
-MEMBER_CIHT = "CIHT"
+# MEMBER_CIHT = "CIHT"
 CBD_MISSING_OR_UNKNOWN_VALUES = [None, "", [], "Unknown", "UNKNOWN", "unknown"]
 
 CBD_BUSINESS_OWNER_MAP = {
@@ -51,7 +52,7 @@ IMPACT_1_OR_2_CONDITION = {
 #     "conditions": {
 #         "assignment_owner_lock_type": "manually_set",
 #     },
-#     "assignment": "preserve current owner_id and members",
+#     "assignment": "preserve current owner_id",
 # }
 #
 # Routing rules are evaluated by descending priority after Criteria 5 is checked.
@@ -121,10 +122,10 @@ ROUTING_RULES = [
         },
         "assignment": {
             "owner_id": CBD_BUSINESS_OWNER_FROM_CONTEXT,
-            "members": [
-                EXISTING_MEMBERS,
-                MEMBER_CIHT,
-            ],
+            # "members": [
+            #     EXISTING_MEMBERS,
+            #     MEMBER_CIHT,
+            # ],
         },
     },
     {
@@ -187,10 +188,10 @@ ROUTING_RULES = [
         },
         "assignment": {
             "owner_id": CBD_BUSINESS_OWNER_FROM_CONTEXT,
-            "members": [
-                EXISTING_MEMBERS,
-                MEMBER_CIHT,
-            ],
+            # "members": [
+            #     EXISTING_MEMBERS,
+            #     MEMBER_CIHT,
+            # ],
         },
     },
     {
@@ -324,25 +325,25 @@ def lock_type_from_rule(rule):
     return None
 
 
-def normalize_members(members):
-    """Clean up Resilient members so we compare a tidy sorted list."""
-    return sorted(
-        set(member for member in (members or []) if member and member != EXISTING_MEMBERS)
-    )
-
-
-def resolve_members(current_members, configured_members):
-    """Build the member list requested by a rule."""
-    configured_members = configured_members or []
-
-    # If the rule does not say "keep existing members", replace the list.
-    if EXISTING_MEMBERS not in configured_members:
-        return normalize_members(configured_members)
-
-    # If the rule says "keep existing members", add the new members to them.
-    members = list(current_members or [])
-    members.extend(member for member in configured_members if member != EXISTING_MEMBERS)
-    return normalize_members(members)
+# def normalize_members(members):
+#     """Clean up Resilient members so we compare a tidy sorted list."""
+#     return sorted(
+#         set(member for member in (members or []) if member and member != EXISTING_MEMBERS)
+#     )
+#
+#
+# def resolve_members(current_members, configured_members):
+#     """Build the member list requested by a rule."""
+#     configured_members = configured_members or []
+#
+#     # If the rule does not say "keep existing members", replace the list.
+#     if EXISTING_MEMBERS not in configured_members:
+#         return normalize_members(configured_members)
+#
+#     # If the rule says "keep existing members", add the new members to them.
+#     members = list(current_members or [])
+#     members.extend(member for member in configured_members if member != EXISTING_MEMBERS)
+#     return normalize_members(members)
 
 
 def resolve_assignment_value(configured_value, context):
@@ -371,41 +372,41 @@ def incident_context(incident):
         "type": properties.type,
         "assignment_owner_lock_type": properties.assignment_owner_lock_type,
         "current_owner_id": incident.owner_id,
-        "current_members": list(incident.members or []),
+        # "current_members": list(incident.members or []),
     }
 
 
 def desired_assignment(context, rule):
-    """Use the matched rule to decide the wanted owner_id, members, and lock."""
+    """Use the matched rule to decide the wanted owner_id and lock."""
     assignment = rule.get("assignment", {})
 
     # Start with what the incident already has. Only change what the rule says.
     owner_id = context["current_owner_id"]
-    members = context["current_members"]
+    # members = context["current_members"]
 
     if "owner_id" in assignment:
         owner_id = resolve_assignment_value(assignment["owner_id"], context)
 
-    if "members" in assignment:
-        members = resolve_members(context["current_members"], assignment["members"])
+    # if "members" in assignment:
+    #     members = resolve_members(context["current_members"], assignment["members"])
 
     return {
         "owner_id": owner_id,
-        "members": members,
+        # "members": members,
         "lock_type": lock_type_from_rule(rule),
     }
 
 
 def apply_assignment(incident, context, desired):
-    """Write the wanted owner_id, members, and lock back to Resilient."""
+    """Write the wanted owner_id and lock back to Resilient."""
     if incident.owner_id != desired["owner_id"]:
         incident.owner_id = desired["owner_id"]
 
-    current_members = set(normalize_members(context["current_members"]))
-    desired_members = set(normalize_members(desired["members"]))
+    # current_members = set(normalize_members(context["current_members"]))
+    # desired_members = set(normalize_members(desired["members"]))
 
-    if current_members != desired_members:
-        incident.members = sorted(desired_members)
+    # if current_members != desired_members:
+    #     incident.members = sorted(desired_members)
 
     if (
         desired["lock_type"]
@@ -433,11 +434,22 @@ def run_assignment_router(incident):
         context = incident_context(incident)
         rule = first_matching_rule(context)
 
-    # No matching rule means Resilient keeps the owner and members as-is.
+    # No matching rule means Resilient keeps the owner as-is.
     if not rule:
         return
 
-    apply_assignment(incident, context, desired_assignment(context, rule))
+    desired = desired_assignment(context, rule)
+
+    if context["current_owner_id"] != desired["owner_id"]:
+        incident.addNote(
+            "Assignment router changed owner_id from {0} to {1} using rule: {2}".format(
+                context["current_owner_id"],
+                desired["owner_id"],
+                rule["name"],
+            )
+        )
+
+    apply_assignment(incident, context, desired)
 
 
 # IBM SOAR injects ``incident`` into the standalone script runtime.

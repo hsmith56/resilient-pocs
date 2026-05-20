@@ -1,61 +1,156 @@
-# Current Assignment Ruleset Proposal
+# IBM SOAR Assignment Router Rules Proposal
 
-This document summarizes the current implementation represented by `requirements.txt`, `assignment_ruleset.py`, `resilient_example_script.py`, and `manual_transfer.py`.
+This document describes the minimal IBM SOAR rules/actions needed to support the assignment router.
 
-## Ruleset source of truth
+The routing logic should live in the script (`full_script.py`). SOAR rules should only decide **when** to run that script or when to mark an assignment as manually set.
 
-- `requirements.txt` contains the current business criteria.
-- `assignment_ruleset.py` contains the data rules evaluated by the router.
-- `resilient_example_script.py` applies those rules, manages locks, and writes audit fields.
-- `manual_transfer.py` supports Criteria 5 protected transfers from any owner `X` to any owner `Y`.
+Users should not edit internal routing fields directly. The script manages `incident.owner_id` and `incident.properties.assignment_owner_lock_type`.
 
-## Current routing behavior
+## Minimal SOAR rules/actions
 
-### Criteria 1 — Triage
+| # | Rule/action | Trigger | Script | Purpose |
+|---:|---|---|---|---|
+| 1 | Incident Created - Assignment Router | Incident is created | `full_script.py` | Run routing when a new incident enters SOAR. |
+| 2 | Phase Changed - Assignment Router | Incident phase changes | `full_script.py` | Re-run routing when the lifecycle phase changes. |
+| 3 | Routing Field Changed - Assignment Router | Routing input field changes | `full_script.py` | Re-run routing when a field that affects ownership changes. |
+| 4 | Manual Recalculate Assignment | User/admin action | `full_script.py` | Re-run routing on demand. |
+| 5 | Manual Transfer Ownership | User/admin action after manually selecting owner | `manual_transfer.py` | Mark the current owner as manually set so the router preserves it. |
 
-- CBD `GWM US` routes to `DISO-GWM US` for impact `0`, `1`, or `2`.
-- Non-high-impact Triage cases that do not match a higher-priority rule route to `DISO-CIHT`.
-- Impact `3` or higher follows the high-impact `DISO-{cbd}` rule when CBD is present.
+## Rule 3: routing field changed trigger
 
-### Criteria 2 — Response and Recovery
+Only trigger automatic recalculation from fields that affect routing:
 
-- Impact `3` or higher routes to `DISO-{incident.properties.cbd}` and adds `CIHT` to current members when CBD is present.
-- Impact `1` or `2` with CBD `AM`, `P&C`, `GWM`, or `GWM WMI` routes to the configured business DISO owner and adds `CIHT` to current members.
-- Impact `1` or `2` with CBD `GF` or `IB` routes to `DISO-CIHT` and leaves members unchanged.
-- CBD `GWM US` with impact `1` or `2` routes to `DISO-GWM US` through lifecycle routing.
+- `incident.properties.cbd`
+- `incident.properties.impact_rating`
+- `incident.properties.causedby`
+- `incident.properties.type`
 
-### Criteria 3 — Lifecycle
+Do **not** trigger the Assignment Router from every owner change. If a user intentionally changes owner and wants that owner preserved, they should use **Manual Transfer Ownership**.
 
-- When the incident moves from `Triage` to `Response and Recovery`, Response and Recovery routing applies.
-- Phases outside `Triage` and `Response and Recovery` preserve the current assignment unless Criteria 5 manual-transfer protection applies.
+## Rule 4: Manual Recalculate Assignment
 
-### Criteria 4 — GF CIHT hold
+Manual recalculation should only run the router.
 
-- Applies only while CBD is `GF` and impact is below `3`.
-- `causedby = IT systems` or `Other third party` routes to `DISO-CIHT` and sets a `condition_based` owner lock.
-- `causedby = Employee` or `Other third party` plus `type = cyber attack` or `cyber incident` routes to `DISO-CIHT` and sets a `condition_based` owner lock.
-- The condition-based lock releases when the creating rule no longer matches.
+Behavior:
 
-### Criteria 5 — Manual transfer
+1. User/admin triggers **Manual Recalculate Assignment**.
+2. SOAR runs `full_script.py`.
+3. Router evaluates the current incident state.
+4. Router updates `incident.owner_id` only if a routing rule matches and no manual lock blocks routing.
+5. Router adds a note when it changes owner.
 
-- Protected transfers from any owner `X` to any owner `Y` create a `manual_transfer` owner lock.
-- The lock preserves the transferred owner while impact is below `3`.
-- The lock releases when impact becomes `3` or higher so high-impact routing can apply.
+This action should not directly set or clear manual ownership protection.
 
-### Criteria 6 — Impact 0 and missing CBD
+## Rule 5: Manual Transfer Ownership
 
-- In active phases, missing CBD and CBD values listed in `CBD_UNKNOWN_VALUES` route to `DISO-CIHT`.
-- In active phases, impact `0` routes to `DISO-CIHT` except CBD `GWM US`, which routes to `DISO-GWM US`.
+Manual transfer ownership is the user-facing way to preserve a manually selected owner.
 
-## Lock types
+Expected user flow:
 
-| Lock type | Created by | Release behavior |
+1. User manually sets the incident owner in SOAR.
+2. User runs **Manual Transfer Ownership**.
+3. SOAR runs `manual_transfer.py`.
+4. `manual_transfer.py` sets:
+
+```python
+incident.properties.assignment_owner_lock_type = "manually_set"
+```
+
+After that, `full_script.py` exits early and preserves the current owner.
+
+## Current routing behavior in `full_script.py`
+
+`full_script.py` evaluates routing rules by descending priority.
+
+Current owner routing rules:
+
+| Priority | Condition | Owner result | Lock |
+|---:|---|---|---|
+| 960 | CBD is `GWM US` | `DISO-GWM US` | `condition_based` |
+| 950 | Phase is `Triage` and CBD is missing/unknown | `DISO-CIHT` | none |
+| 900 | Phase is `Triage`, impact rating `>= 3`, CBD present | CBD business owner from `CBD_BUSINESS_OWNER_MAP`, default `DISO-CIHT` | none |
+| 900 | Phase is not `Triage`, impact rating `>= 3`, CBD present | CBD business owner from `CBD_BUSINESS_OWNER_MAP`, default `DISO-CIHT` | none |
+| 800 | Phase is not `Triage`, CBD `GF`, impact `< 3`, caused by `IT systems` or `Other third party` | `DISO-CIHT` | `condition_based` |
+| 790 | Phase is not `Triage`, CBD `GF`, impact `< 3`, caused by `Employee`, type is `cyber attack` or `cyber incident` | `DISO-CIHT` | `condition_based` |
+| 700 | Phase is not `Triage`, CBD is `AM`, `P&C`, `GWM`, or `GWM WMI`, impact is `1` or `2` | CBD business owner from `CBD_BUSINESS_OWNER_MAP`, default `DISO-CIHT` | none |
+| 650 | Phase is not `Triage`, CBD is `GF` or `IB`, impact is `1` or `2` | `DISO-CIHT` | none |
+| 600 | Impact rating is `0` | `DISO-CIHT` | none |
+| 100 | Phase is `Triage`, impact rating `< 3` | `DISO-CIHT` | none |
+
+## Current lock behavior
+
+`full_script.py` supports two lock types:
+
+| Lock type | Set by | Behavior |
 |---|---|---|
-| `manual_transfer` | Criteria 5 in the router or `manual_transfer.py` protected transfers | Releases when impact becomes `3` or higher |
-| `condition_based` | Criteria 4 GF CIHT hold rules | Releases when the creating rule no longer matches |
-| `manual` | External/admin process if present | Preserved until explicitly cleared |
-| `incident_lifetime` | External/admin process if present | Preserved until explicitly cleared |
+| `manually_set` | `manual_transfer.py` | Router exits immediately and preserves current owner. |
+| `condition_based` | GWM US rule and Criteria 4 GF rules | Router preserves lock while another condition-based rule still matches. If no condition-based rule matches, router clears the lock and re-evaluates. |
 
-## Audit fields
+## Current audit/note behavior
 
-The router writes matched rule names, status, last evaluation time, lock state, and `assignment_router_last_owner` so subsequent evaluations can preserve protected transfers and explain routing decisions.
+When `full_script.py` changes owner, it adds an incident note:
+
+```text
+Assignment router changed owner_id from {old_owner} to {new_owner} using rule: {rule_name}
+```
+
+No note is added when:
+
+- no routing rule matches,
+- matched rule keeps the same owner,
+- routing exits because `assignment_owner_lock_type == "manually_set"`.
+
+## Members handling
+
+Members handling is currently disabled in `full_script.py`.
+
+The older member-related logic is commented out, including:
+
+- `EXISTING_MEMBERS`
+- `MEMBER_CIHT`
+- member blocks inside routing rule assignments
+- `normalize_members()`
+- `resolve_members()`
+- reading `incident.members`
+- writing `incident.members`
+
+Current routing changes owner only. It does not add or remove members.
+
+## Audit of current implementation
+
+Status: **truthful for the current working-tree implementation with the pending `full_script.py` edits.**
+
+Confirmed:
+
+- `full_script.py` reads routing inputs from:
+  - `incident.phase_id.name`
+  - `incident.properties.impact_rating`
+  - `incident.properties.cbd`
+  - `incident.properties.causedby`
+  - `incident.properties.type`
+  - `incident.properties.assignment_owner_lock_type`
+  - `incident.owner_id`
+- `full_script.py` writes owner changes to `incident.owner_id`.
+- CBD business-owner lookup uses `CBD_BUSINESS_OWNER_MAP`.
+- CBD business-owner fallback is hard-coded as `DISO-CIHT`.
+- `manual_transfer.py` only sets `assignment_owner_lock_type = "manually_set"`.
+- `full_script.py` exits early when `assignment_owner_lock_type == "manually_set"`.
+- `full_script.py` can set `condition_based` lock for matching condition-based rules.
+- `full_script.py` clears stale `condition_based` lock when no condition-based rule matches.
+- `full_script.py` adds an incident note when owner changes.
+- Members are currently disabled.
+
+Not currently implemented:
+
+- protected transfer input form,
+- target-owner input handling in `manual_transfer.py`,
+- optional reason/comment handling,
+- multiple manual lock types such as `manual`, `manual_transfer`, or `incident_lifetime`,
+- lock reason/audit fields beyond `assignment_owner_lock_type`,
+- member updates.
+
+## Final recommendation
+
+Create only the five SOAR rules/actions listed above.
+
+Keep SOAR rules minimal. Put routing decisions in `full_script.py`. Use `manual_transfer.py` only to mark current ownership as manually set when users want to protect a manual transfer.
