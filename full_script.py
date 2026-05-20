@@ -165,7 +165,7 @@ ROUTING_RULES = [
     },
     {
         "name": "Criteria 1/6 - GWM US routes to DISO-GWM US with condition lock",
-        "priority": 720,
+        "priority": 960,
         "conditions": {
             "cbd": "GWM US",
         },
