@@ -2,9 +2,6 @@
 # the remaining configured members." This value is stripped before saving.
 EXISTING_MEMBERS = "_existing_members"
 
-# Sentinel used in rules to match missing incident values. A unique object avoids
-# confusing an intentional expected value of None/""/[] with the missing marker.
-
 TRIAGE_PHASE = "Triage"
 
 OWNER_CIHT = "DISO-CIHT"
@@ -60,6 +57,23 @@ IMPACT_1_OR_2_CONDITION = {
 # Routing rules are evaluated by descending priority after Criteria 5 is checked.
 ROUTING_RULES = [
     {
+        "name": "Criteria 1/6 - GWM US routes to DISO-GWM US with condition lock",
+        "priority": 960,
+        "conditions": {
+            "cbd": "GWM US",
+        },
+        "assignment": {
+            "owner_id": OWNER_GWM_US,
+        },
+        "locks": {
+            "owner_id": {
+                "enabled": True,
+                "type": "condition_based",
+                "reason": "GWM US locked to owner",
+            }
+        },
+    },
+    {
         "name": "Criteria 1 - Triage missing or unknown CBD routes to CIHT",
         "priority": 950,
         "phase": TRIAGE_PHASE,
@@ -72,10 +86,9 @@ ROUTING_RULES = [
         "assignment": {
             "owner_id": OWNER_CIHT,
         },
-        "locks": {},
     },
     {
-        "name": "Criteria 1 - Triage impact rating 3+ routes to respective CBD owner",
+        "name": "Criteria 1 - Triage impact rating 3+ routes to respective CBD business owner",
         "priority": 900,
         "phase": TRIAGE_PHASE,
         "conditions": {
@@ -91,10 +104,9 @@ ROUTING_RULES = [
         "assignment": {
             "owner_id": CBD_BUSINESS_OWNER_FROM_CONTEXT,
         },
-        "locks": {},
     },
     {
-        "name": "Criteria 2 - After Triage impact rating 3+ routes to respective CBD owner",
+        "name": "Criteria 2 - After Triage impact rating 3+ routes to respective CBD business owner",
         "priority": 900,
         "conditions": {
             "phase": NOT_IN_TRIAGE_CONDITION,
@@ -114,7 +126,6 @@ ROUTING_RULES = [
                 MEMBER_CIHT,
             ],
         },
-        "locks": {},
     },
     {
         "name": "Criteria 4 - After Triage GF causedby routes to CIHT with condition lock",
@@ -164,23 +175,6 @@ ROUTING_RULES = [
         },
     },
     {
-        "name": "Criteria 1/6 - GWM US routes to DISO-GWM US with condition lock",
-        "priority": 960,
-        "conditions": {
-            "cbd": "GWM US",
-        },
-        "assignment": {
-            "owner_id": OWNER_GWM_US,
-        },
-        "locks": {
-            "owner_id": {
-                "enabled": True,
-                "type": "condition_based",
-                "reason": "GWM US locked to owner",
-            }
-        },
-    },
-    {
         "name": "Criteria 2 - After Triage business impact rating 1-2 routes to business owner",
         "priority": 700,
         "phase": NOT_IN_TRIAGE_CONDITION,
@@ -198,7 +192,6 @@ ROUTING_RULES = [
                 MEMBER_CIHT,
             ],
         },
-        "locks": {},
     },
     {
         "name": "Criteria 2 - After Triage GF/IB impact rating 1-2 routes to CIHT",
@@ -214,7 +207,6 @@ ROUTING_RULES = [
         "assignment": {
             "owner_id": OWNER_CIHT,
         },
-        "locks": {},
     },
     {
         "name": "Criteria 6 - Impact rating 0 default routes to CIHT",
@@ -225,7 +217,6 @@ ROUTING_RULES = [
         "assignment": {
             "owner_id": OWNER_CIHT,
         },
-        "locks": {},
     },
     {
         "name": "Criteria 1/6 - Triage impact rating below 3 default routes to CIHT",
@@ -237,7 +228,6 @@ ROUTING_RULES = [
         "assignment": {
             "owner_id": OWNER_CIHT,
         },
-        "locks": {},
     },
 ]
 
@@ -258,7 +248,7 @@ def normalize_impact_rating(value):
     try:
         return int(value)
     except (TypeError, ValueError):
-        return value
+        return None
 
 
 def condition_matches(actual_value, expected_condition):
@@ -272,9 +262,6 @@ def condition_matches(actual_value, expected_condition):
     # Operator rule value, like: impact_rating >= 3
     operator = expected_condition["operator"]
     expected_value = expected_condition["value"]
-
-    if operator == "not_missing":
-        return not is_missing(actual_value)
 
     # Blank Resilient fields should not pass number/list comparisons.
     if is_missing(actual_value):
@@ -330,10 +317,11 @@ def lock_type_from_rule(rule):
     if not owner_id_lock or not owner_id_lock.get("enabled"):
         return None
 
-    if owner_id_lock.get("type") == CONDITION_BASED_LOCK:
-        return CONDITION_BASED_LOCK
+    lock_type = owner_id_lock.get("type")
+    if lock_type in [CONDITION_BASED_LOCK, MANUALLY_SET_LOCK]:
+        return lock_type
 
-    return MANUALLY_SET_LOCK
+    return None
 
 
 def normalize_members(members):
@@ -359,27 +347,14 @@ def resolve_members(current_members, configured_members):
 
 def resolve_assignment_value(configured_value, context):
     """Turn a rule's owner_id setting into the real owner_id value for Resilient."""
-    # Example: "DISO-CIHT"
     if not isinstance(configured_value, dict):
         return configured_value
 
-    # Example: use another value already read from the incident.
-    if "context" in configured_value:
-        return context.get(configured_value["context"])
-
-    # Example: owner = "DISO-{cbd}" or owner from a CBD map.
     field_value = context.get(configured_value["field"])
-
-    if is_missing(field_value):
-        return configured_value.get("missing_value")
-
     value_map = configured_value.get("map", {})
 
     if field_value in value_map:
         return value_map[field_value]
-
-    if configured_value.get("default_template"):
-        return configured_value["default_template"].format(**context)
 
     return configured_value.get("default")
 
