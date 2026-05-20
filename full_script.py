@@ -29,6 +29,11 @@ NOT_IN_TRIAGE_CONDITION = {
     "value": [TRIAGE_PHASE]
 }
 
+IMPACT_3_OR_HIGHER_CONDITION = {
+    "operator": ">=",
+    "value": 3,
+}
+
 IMPACT_BELOW_3_CONDITION = {
     "operator": "<",
     "value": 3,
@@ -93,10 +98,7 @@ ROUTING_RULES = [
         "priority": 900,
         "phase": TRIAGE_PHASE,
         "conditions": {
-            "impact_rating": {
-                "operator": ">=",
-                "value": 3,
-            },
+            "impact_rating": IMPACT_3_OR_HIGHER_CONDITION,
             "cbd": {
                 "operator": "not_in",
                 "value": CBD_MISSING_OR_UNKNOWN_VALUES,
@@ -105,16 +107,20 @@ ROUTING_RULES = [
         "assignment": {
             "owner_id": CBD_BUSINESS_OWNER_FROM_CONTEXT,
         },
+        "locks": {
+            "owner_id": {
+                "enabled": True,
+                "type": "incident_lifetime",
+                "reason": "High-impact Triage owner is preserved until impact drops below 3.",
+            }
+        },
     },
     {
         "name": "Criteria 2 - After Triage impact rating 3+ routes to respective CBD business owner",
         "priority": 900,
         "conditions": {
             "phase": NOT_IN_TRIAGE_CONDITION,
-            "impact_rating": {
-                "operator": ">=",
-                "value": 3,
-            },
+            "impact_rating": IMPACT_3_OR_HIGHER_CONDITION,
             "cbd": {
                 "operator": "not_in",
                 "value": CBD_MISSING_OR_UNKNOWN_VALUES,
@@ -233,6 +239,7 @@ ROUTING_RULES = [
 ]
 
 CONDITION_BASED_LOCK = "condition_based"
+INCIDENT_LIFETIME_LOCK = "incident_lifetime"
 MANUALLY_SET_LOCK = "manually_set"
 
 
@@ -319,7 +326,7 @@ def lock_type_from_rule(rule):
         return None
 
     lock_type = owner_id_lock.get("type")
-    if lock_type in [CONDITION_BASED_LOCK, MANUALLY_SET_LOCK]:
+    if lock_type in [CONDITION_BASED_LOCK, INCIDENT_LIFETIME_LOCK, MANUALLY_SET_LOCK]:
         return lock_type
 
     return None
@@ -429,6 +436,15 @@ def run_assignment_router(incident):
         # Criteria 5: if a person manually locked the assignment, the router stops.
         if context["assignment_owner_lock_type"] == MANUALLY_SET_LOCK:
             return
+
+        # High-impact Triage ownership is preserved across phase/CBD/causedby/type
+        # changes. Release it only when impact drops below 3.
+        if context["assignment_owner_lock_type"] == INCIDENT_LIFETIME_LOCK:
+            if condition_matches(context["impact_rating"], IMPACT_3_OR_HIGHER_CONDITION):
+                return
+
+            incident.properties.assignment_owner_lock_type = None
+            context = incident_context(incident)
 
         routing_rule = first_matching_rule(context)
 

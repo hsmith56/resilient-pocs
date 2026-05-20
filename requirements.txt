@@ -1,30 +1,40 @@
 criteria 1
     in Triage phase:
-        if the cbd is unknown, then the owner will be set to "CIHT". Should be re-evaluated once cbd is set to a value
-        else if incident.properties.cbd == "GWM US" then set owner to "DISO-GWM US" for rest of lifecycle
-        else if incident.properties.impact_rating == 0 then set owner to "DISO-CIHT"
-        else if incident.properties.impact_rating == 1 or 2 then set owner to "DISO-CIHT"
-        else if incident.properties.impact_rating >= 3 then set owner to respective DISO (f"DISO-{incident.properties.cbd}")
+        if incident.properties.cbd is missing or unknown, then set owner_id to "DISO-CIHT"
+        if incident.properties.cbd == "GWM US", then set owner_id to "DISO-GWM US" and set a condition_based lock while this rule continues to match
+        if incident.properties.impact_rating >= 3 and cbd is present, then set owner_id to the CBD business owner from CBD_BUSINESS_OWNER_MAP, defaulting to "DISO-CIHT", and set an incident_lifetime lock
+        the incident_lifetime lock preserves the owner across phase, cbd, causedby, and type changes while impact_rating remains >= 3
+        the incident_lifetime lock is cleared only when impact_rating drops below 3 or becomes blank/invalid
+        if incident.properties.impact_rating < 3 and no higher-priority rule matches, then set owner_id to "DISO-CIHT"
 
 criteria 2
     after Triage phase, including Response and Recovery and the rest of the incident lifecycle:
-        if incident.properties.cbd is any of ["AM", "P&C", "GWM", "GWM WMI"] and incident.properties.impact_rating is 1 or 2 then set owner to respective business DISO and members = "CIHT" + current members
-        if incident.properties.cbd is any of ["GF", "IB"] and incident.properties.impact_rating is 1 or 2 then set owner to "DISO-CIHT" and members unchanged
-        if incident.properties.impact_rating >= 3 then set owner to respective DISO (f"DISO-{incident.properties.cbd}") and members = "CIHT" + current members
-        if incident.properties.impact_rating == 0 then set owner to "DISO-CIHT" except when incident.properties.cbd == "GWM US"
+        if incident.properties.impact_rating >= 3 and cbd is present, then set owner_id to the CBD business owner from CBD_BUSINESS_OWNER_MAP, defaulting to "DISO-CIHT"
+        if incident.properties.cbd is any of ["AM", "P&C", "GWM", "GWM WMI"] and incident.properties.impact_rating is 1 or 2, then set owner_id to the CBD business owner from CBD_BUSINESS_OWNER_MAP, defaulting to "DISO-CIHT"
+        if incident.properties.cbd is any of ["GF", "IB"] and incident.properties.impact_rating is 1 or 2, then set owner_id to "DISO-CIHT"
+        if incident.properties.impact_rating == 0, then set owner_id to "DISO-CIHT" unless a higher-priority rule matches
+        members handling is currently disabled; the router does not add or remove members
 
 criteria 3
-    once phase moves out of Triage, ownership follows criteria 2 for the rest of the incident lifecycle
-    once Response and Recovery is complete, there is no separate ownership reset; the rest-of-lifecycle ownership remains as-is
-    once task is closed, there is no separate ownership reset; the rest-of-lifecycle ownership remains as-is
+    phase changes are handled by a Task rule named "Phase Change Check"
+    when a task phase changes, the SOAR rule sets incident.properties.ownership_field_changed to True
+    ownership_field_changed is included as a routing field so the Routing Field Changed rule runs full_script.py
+    full_script.py resets incident.properties.ownership_field_changed to False before exiting
+    phase changes do not override a manually_set lock or an incident_lifetime lock
 
 criteria 4
-    after Triage phase, owner should stay with CIHT in the below conditions unless impact rating is set to 3 or above or cbd is changed to anything other than "GF"
-    if incident.properties.causedby = "IT systems" or "Other third party" then owner set to "CIHT"
-    if incident.properties.causedby = "Employee" or "Other third party" and incident.properties.type = "cyber attack" or "cyber incident" then owner set to "CIHT"
+    after Triage phase, if incident.properties.cbd == "GF" and incident.properties.impact_rating < 3:
+        if incident.properties.causedby is "IT systems" or "Other third party", then set owner_id to "DISO-CIHT" and set a condition_based lock
+        if incident.properties.causedby is "Employee" and incident.properties.type is "cyber attack" or "cyber incident", then set owner_id to "DISO-CIHT" and set a condition_based lock
+    condition_based locks are cleared when no condition_based rule still matches, then routing is re-evaluated
 
 criteria 5
-    if need to transfer case from "X" to "Y", the logic set for the new owner should apply for the rest of the case lifecycle, regardless of the original owner and the new owner
+    if incident.properties.assignment_owner_lock_type == "manually_set", full_script.py exits immediately and preserves the current owner_id
+    manual_transfer.py currently sets incident.properties.assignment_owner_lock_type to "manually_set"
 
 criteria 6
-    if the impact rating is 0, the owner will always be "CIHT" except in case of incident.properties.cbd == "GWM US". This applies regardless of phase
+    if incident.properties.impact_rating == 0, then set owner_id to "DISO-CIHT" unless a higher-priority rule matches
+    GWM US is higher priority and routes to "DISO-GWM US"
+
+current audit behavior
+    when full_script.py changes owner_id, it adds an incident note saying which routing rule changed the owner

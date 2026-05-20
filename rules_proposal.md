@@ -11,7 +11,7 @@ Users should not edit internal routing fields directly. The script manages `inci
 | # | Rule/action | Trigger | Script | Purpose |
 |---:|---|---|---|---|
 | 1 | Incident Created - Assignment Router | Incident is created | `full_script.py` | Run routing when a new incident enters SOAR. |
-| 2 | Phase Changed - Assignment Router | Incident phase changes | `full_script.py` | Re-run routing when the lifecycle phase changes. |
+| 2 | Phase Change Check | Task phase changes | SOAR set-field activity | Set `incident.properties.ownership_field_changed = True` so routing can run after lifecycle phase changes. |
 | 3 | Routing Field Changed - Assignment Router | Routing input field changes | `full_script.py` | Re-run routing when a field that affects ownership changes. |
 | 4 | Manual Recalculate Assignment | User/admin action | `full_script.py` | Re-run routing on demand. |
 | 5 | Manual Transfer Ownership | User/admin action after manually selecting owner | `manual_transfer.py` | Mark the current owner as manually set so the router preserves it. |
@@ -24,6 +24,7 @@ Only trigger automatic recalculation from fields that affect routing:
 - `incident.properties.impact_rating`
 - `incident.properties.causedby`
 - `incident.properties.type`
+- `incident.properties.ownership_field_changed`
 
 Do **not** trigger the Assignment Router from every owner change. If a user intentionally changes owner and wants that owner preserved, they should use **Manual Transfer Ownership**.
 
@@ -38,6 +39,7 @@ Behavior:
 3. Router evaluates the current incident state.
 4. Router updates `incident.owner_id` only if a routing rule matches and no manual lock blocks routing.
 5. Router adds a note when it changes owner.
+6. Router resets `incident.properties.ownership_field_changed = False` before exiting.
 
 This action should not directly set or clear manual ownership protection.
 
@@ -68,7 +70,7 @@ Current owner routing rules:
 |---:|---|---|---|
 | 960 | CBD is `GWM US` | `DISO-GWM US` | `condition_based` |
 | 950 | Phase is `Triage` and CBD is missing/unknown | `DISO-CIHT` | none |
-| 900 | Phase is `Triage`, impact rating `>= 3`, CBD present | CBD business owner from `CBD_BUSINESS_OWNER_MAP`, default `DISO-CIHT` | none |
+| 900 | Phase is `Triage`, impact rating `>= 3`, CBD present | CBD business owner from `CBD_BUSINESS_OWNER_MAP`, default `DISO-CIHT` | `incident_lifetime` |
 | 900 | Phase is not `Triage`, impact rating `>= 3`, CBD present | CBD business owner from `CBD_BUSINESS_OWNER_MAP`, default `DISO-CIHT` | none |
 | 800 | Phase is not `Triage`, CBD `GF`, impact `< 3`, caused by `IT systems` or `Other third party` | `DISO-CIHT` | `condition_based` |
 | 790 | Phase is not `Triage`, CBD `GF`, impact `< 3`, caused by `Employee`, type is `cyber attack` or `cyber incident` | `DISO-CIHT` | `condition_based` |
@@ -79,11 +81,12 @@ Current owner routing rules:
 
 ## Current lock behavior
 
-`full_script.py` supports two lock types:
+`full_script.py` supports three lock types:
 
 | Lock type | Set by | Behavior |
 |---|---|---|
 | `manually_set` | `manual_transfer.py` | Router exits immediately and preserves current owner. |
+| `incident_lifetime` | Criteria 1 high-impact Triage rule | Router preserves the owner across phase, CBD, causedby, and type changes while impact remains `>= 3`. If impact drops below `3` or becomes blank/invalid, router clears the lock and re-evaluates. |
 | `condition_based` | GWM US rule and Criteria 4 GF rules | Router preserves lock while another condition-based rule still matches. If no condition-based rule matches, router clears the lock and re-evaluates. |
 
 ## Current audit/note behavior
@@ -135,9 +138,13 @@ Confirmed:
 - CBD business-owner fallback is hard-coded as `DISO-CIHT`.
 - `manual_transfer.py` only sets `assignment_owner_lock_type = "manually_set"`.
 - `full_script.py` exits early when `assignment_owner_lock_type == "manually_set"`.
+- `full_script.py` can set `incident_lifetime` lock for Criteria 1 high-impact Triage routing.
+- `full_script.py` preserves `incident_lifetime` lock while impact remains `>= 3`.
+- `full_script.py` clears `incident_lifetime` lock when impact drops below `3` or becomes blank/invalid.
 - `full_script.py` can set `condition_based` lock for matching condition-based rules.
 - `full_script.py` clears stale `condition_based` lock when no condition-based rule matches.
 - `full_script.py` adds an incident note when owner changes.
+- `full_script.py` resets `ownership_field_changed` to `False` before exiting.
 - Members are currently disabled.
 
 Not currently implemented:
@@ -145,7 +152,7 @@ Not currently implemented:
 - protected transfer input form,
 - target-owner input handling in `manual_transfer.py`,
 - optional reason/comment handling,
-- multiple manual lock types such as `manual`, `manual_transfer`, or `incident_lifetime`,
+- multiple manual lock types such as `manual` or `manual_transfer`,
 - lock reason/audit fields beyond `assignment_owner_lock_type`,
 - member updates.
 
