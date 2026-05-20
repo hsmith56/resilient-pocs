@@ -415,41 +415,50 @@ def apply_assignment(incident, context, desired):
         incident.properties.assignment_owner_lock_type = desired["lock_type"]
 
 
+def reset_ownership_field_changed(incident):
+    """Clear the helper flag used to trigger ownership routing."""
+    if getattr(incident.properties, "ownership_field_changed", False):
+        incident.properties.ownership_field_changed = False
+
+
 def run_assignment_router(incident):
     """Run the simple Resilient assignment router."""
-    context = incident_context(incident)
-
-    # Criteria 5: if a person manually locked the assignment, the router stops.
-    if context["assignment_owner_lock_type"] == MANUALLY_SET_LOCK:
-        return
-
-    rule = first_matching_rule(context)
-
-    # If an old condition lock no longer matches, clear it and check again.
-    if (
-        context["assignment_owner_lock_type"] == CONDITION_BASED_LOCK
-        and lock_type_from_rule(rule) != CONDITION_BASED_LOCK
-    ):
-        incident.properties.assignment_owner_lock_type = None
+    try:
         context = incident_context(incident)
-        rule = first_matching_rule(context)
 
-    # No matching rule means Resilient keeps the owner as-is.
-    if not rule:
-        return
+        # Criteria 5: if a person manually locked the assignment, the router stops.
+        if context["assignment_owner_lock_type"] == MANUALLY_SET_LOCK:
+            return
 
-    desired = desired_assignment(context, rule)
+        routing_rule = first_matching_rule(context)
 
-    if context["current_owner_id"] != desired["owner_id"]:
-        incident.addNote(
-            "Assignment router changed owner_id from {0} to {1} using rule: {2}".format(
-                context["current_owner_id"],
-                desired["owner_id"],
-                rule["name"],
+        # If an old condition lock no longer matches, clear it and check again.
+        if (
+            context["assignment_owner_lock_type"] == CONDITION_BASED_LOCK
+            and lock_type_from_rule(routing_rule) != CONDITION_BASED_LOCK
+        ):
+            incident.properties.assignment_owner_lock_type = None
+            context = incident_context(incident)
+            routing_rule = first_matching_rule(context)
+
+        # No matching rule means Resilient keeps the owner as-is.
+        if not routing_rule:
+            return
+
+        desired = desired_assignment(context, routing_rule)
+
+        if context["current_owner_id"] != desired["owner_id"]:
+            incident.addNote(
+                "Assignment router changed owner_id from {0} to {1} using rule: {2}".format(
+                    context["current_owner_id"],
+                    desired["owner_id"],
+                    routing_rule["name"],
+                )
             )
-        )
 
-    apply_assignment(incident, context, desired)
+        apply_assignment(incident, context, desired)
+    finally:
+        reset_ownership_field_changed(incident)
 
 
 # IBM SOAR injects ``incident`` into the standalone script runtime.
