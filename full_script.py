@@ -9,6 +9,7 @@ TRIAGE_PHASE = "Triage"
 
 OWNER_CIHT = "DISO-CIHT"
 OWNER_GWM_US = "DISO-GWM US"
+DEFAULT_CBD_BUSINESS_OWNER = "DISO-CIHT"
 MEMBER_CIHT = "CIHT"
 CBD_MISSING_OR_UNKNOWN_VALUES = [None, "", [], "Unknown", "UNKNOWN", "unknown"]
 
@@ -19,14 +20,10 @@ CBD_BUSINESS_OWNER_MAP = {
     "GWM WMI": "DISO-GWM WMI",
 }
 
-CBD_OWNER_FROM_CONTEXT = {
-    "field": "cbd",
-    "default_template": "DISO-{cbd}",
-}
-
 CBD_BUSINESS_OWNER_FROM_CONTEXT = {
     "field": "cbd",
     "map": CBD_BUSINESS_OWNER_MAP,
+    "default": DEFAULT_CBD_BUSINESS_OWNER,
 }
 
 NOT_IN_TRIAGE_CONDITION = {
@@ -57,7 +54,7 @@ IMPACT_1_OR_2_CONDITION = {
 #     "conditions": {
 #         "assignment_owner_lock_type": "manually_set",
 #     },
-#     "assignment": "preserve current owner and members",
+#     "assignment": "preserve current owner_id and members",
 # }
 #
 # Routing rules are evaluated by descending priority after Criteria 5 is checked.
@@ -73,7 +70,7 @@ ROUTING_RULES = [
             },
         },
         "assignment": {
-            "owner": OWNER_CIHT,
+            "owner_id": OWNER_CIHT,
         },
         "locks": {},
     },
@@ -92,7 +89,7 @@ ROUTING_RULES = [
             },
         },
         "assignment": {
-            "owner": CBD_OWNER_FROM_CONTEXT,
+            "owner_id": CBD_BUSINESS_OWNER_FROM_CONTEXT,
         },
         "locks": {},
     },
@@ -111,7 +108,7 @@ ROUTING_RULES = [
             },
         },
         "assignment": {
-            "owner": CBD_OWNER_FROM_CONTEXT,
+            "owner_id": CBD_BUSINESS_OWNER_FROM_CONTEXT,
             "members": [
                 EXISTING_MEMBERS,
                 MEMBER_CIHT,
@@ -132,10 +129,10 @@ ROUTING_RULES = [
             },
         },
         "assignment": {
-            "owner": OWNER_CIHT,
+            "owner_id": OWNER_CIHT,
         },
         "locks": {
-            "owner": {
+            "owner_id": {
                 "enabled": True,
                 "type": "condition_based",
                 "reason": "Owner held with CIHT by Criteria 4 causedby rule.",
@@ -156,10 +153,10 @@ ROUTING_RULES = [
             },
         },
         "assignment": {
-            "owner": OWNER_CIHT,
+            "owner_id": OWNER_CIHT,
         },
         "locks": {
-            "owner": {
+            "owner_id": {
                 "enabled": True,
                 "type": "condition_based",
                 "reason": "Owner held with CIHT by Criteria 4 causedby/type rule.",
@@ -173,10 +170,10 @@ ROUTING_RULES = [
             "cbd": "GWM US",
         },
         "assignment": {
-            "owner": OWNER_GWM_US,
+            "owner_id": OWNER_GWM_US,
         },
         "locks": {
-            "owner": {
+            "owner_id": {
                 "enabled": True,
                 "type": "condition_based",
                 "reason": "GWM US locked to owner",
@@ -195,7 +192,7 @@ ROUTING_RULES = [
             "impact_rating": IMPACT_1_OR_2_CONDITION,
         },
         "assignment": {
-            "owner": CBD_BUSINESS_OWNER_FROM_CONTEXT,
+            "owner_id": CBD_BUSINESS_OWNER_FROM_CONTEXT,
             "members": [
                 EXISTING_MEMBERS,
                 MEMBER_CIHT,
@@ -215,7 +212,7 @@ ROUTING_RULES = [
             "impact_rating": IMPACT_1_OR_2_CONDITION,
         },
         "assignment": {
-            "owner": OWNER_CIHT,
+            "owner_id": OWNER_CIHT,
         },
         "locks": {},
     },
@@ -226,7 +223,7 @@ ROUTING_RULES = [
             "impact_rating": 0,
         },
         "assignment": {
-            "owner": OWNER_CIHT,
+            "owner_id": OWNER_CIHT,
         },
         "locks": {},
     },
@@ -238,7 +235,7 @@ ROUTING_RULES = [
             "impact_rating": IMPACT_BELOW_3_CONDITION,
         },
         "assignment": {
-            "owner": OWNER_CIHT,
+            "owner_id": OWNER_CIHT,
         },
         "locks": {},
     },
@@ -328,12 +325,12 @@ def first_matching_rule(context):
 
 def lock_type_from_rule(rule):
     """Get the lock type a rule wants to set, if any."""
-    owner_lock = (rule or {}).get("locks", {}).get("owner")
+    owner_id_lock = (rule or {}).get("locks", {}).get("owner_id")
 
-    if not owner_lock or not owner_lock.get("enabled"):
+    if not owner_id_lock or not owner_id_lock.get("enabled"):
         return None
 
-    if owner_lock.get("type") == CONDITION_BASED_LOCK:
+    if owner_id_lock.get("type") == CONDITION_BASED_LOCK:
         return CONDITION_BASED_LOCK
 
     return MANUALLY_SET_LOCK
@@ -361,7 +358,7 @@ def resolve_members(current_members, configured_members):
 
 
 def resolve_assignment_value(configured_value, context):
-    """Turn a rule's owner setting into the real owner value for Resilient."""
+    """Turn a rule's owner_id setting into the real owner_id value for Resilient."""
     # Example: "DISO-CIHT"
     if not isinstance(configured_value, dict):
         return configured_value
@@ -398,36 +395,36 @@ def incident_context(incident):
         "causedby": properties.causedby,
         "type": properties.type,
         "assignment_owner_lock_type": properties.assignment_owner_lock_type,
-        "current_owner": incident.owner_id,
+        "current_owner_id": incident.owner_id,
         "current_members": list(incident.members or []),
     }
 
 
 def desired_assignment(context, rule):
-    """Use the matched rule to decide the wanted owner, members, and lock."""
+    """Use the matched rule to decide the wanted owner_id, members, and lock."""
     assignment = rule.get("assignment", {})
 
     # Start with what the incident already has. Only change what the rule says.
-    owner = context["current_owner"]
+    owner_id = context["current_owner_id"]
     members = context["current_members"]
 
-    if "owner" in assignment:
-        owner = resolve_assignment_value(assignment["owner"], context)
+    if "owner_id" in assignment:
+        owner_id = resolve_assignment_value(assignment["owner_id"], context)
 
     if "members" in assignment:
         members = resolve_members(context["current_members"], assignment["members"])
 
     return {
-        "owner": owner,
+        "owner_id": owner_id,
         "members": members,
         "lock_type": lock_type_from_rule(rule),
     }
 
 
 def apply_assignment(incident, context, desired):
-    """Write the wanted owner, members, and lock back to Resilient."""
-    if incident.owner_id != desired["owner"]:
-        incident.owner_id = desired["owner"]
+    """Write the wanted owner_id, members, and lock back to Resilient."""
+    if incident.owner_id != desired["owner_id"]:
+        incident.owner_id = desired["owner_id"]
 
     current_members = set(normalize_members(context["current_members"]))
     desired_members = set(normalize_members(desired["members"]))
