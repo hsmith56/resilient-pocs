@@ -1,26 +1,37 @@
 # -*- coding: utf-8 -*-
 
+import json
 import logging
 from copy import deepcopy
 
-from resilient_circuits import AppFunctionComponent, app_function, FunctionResult
+from resilient_circuits import AppFunctionComponent, FunctionResult, app_function
 
-PACKAGE_NAME = "fn_ensure_legal_entity_causing"
-FN_NAME = "fn_ensure_legal_entity_causing"
+PACKAGE_NAME = "fn_ensure_causing_entity"
+FN_NAME = "fn_ensure_causing_entity"
+
+DATATABLE_API_NAME = "legal_entites_datatable"
+DATATABLE_FIELD_API_NAME = "legal_entities_data_subjects_impacted"
 
 LOG = logging.getLogger(__name__)
-
-FIELD_API_NAME = "legal_entity_causing"
 
 
 class FunctionComponent(AppFunctionComponent):
     """
     Function:
-      Ensure a value exists in the incident.properties.legal_entity_causing
-      dropdown list.
+      Ensure causing_entity exists as an available selection in the
+      Legal Entities datatable multiselect field.
 
-    This function does NOT set the incident field value.
-    The workflow/playbook post-process script should set the field after success.
+    This function does NOT:
+      - update incident.properties.xyl
+      - update any incident details
+      - update any datatable rows
+      - require incident_id
+
+    Required function input:
+      - causing_entity
+
+    Metadata updated:
+      - /types/legal_entites_datatable/fields/legal_entities_data_subjects_impacted
     """
 
     def __init__(self, opts):
@@ -29,176 +40,255 @@ class FunctionComponent(AppFunctionComponent):
 
     @app_function(FN_NAME)
     def _app_function(self, fn_inputs):
-        """
-        Inputs expected:
-          - legal_entity_causing_value: text
-
-        Returns:
-          {
-            "success": true,
-            "field_api_name": "legal_entity_causing",
-            "value": "Some Legal Entity",
-            "value_existed": false,
-            "value_added": true
-          }
-        """
-
-        yield self.status_message("Starting legal_entity_causing dropdown check")
+        yield self.status_message("Starting ensure-causing-entity function")
 
         rest_client = self.rest_client()
-
-        value_to_set = getattr(fn_inputs, "legal_entity_causing_value", None)
+        causing_entity = getattr(fn_inputs, "causing_entity", None)
 
         try:
-            value_to_set = self._validate_value(value_to_set)
+            values_to_ensure = self._normalize_values_to_list(causing_entity)
+
+            if not values_to_ensure:
+                raise ValueError("causing_entity is required")
 
             yield self.status_message(
-                "Checking dropdown incident.properties.{} for value '{}'".format(
-                    FIELD_API_NAME,
-                    value_to_set
+                "Ensuring datatable multiselect options exist: {}".format(
+                    ", ".join(values_to_ensure)
                 )
             )
 
-            field_def = self._get_incident_field_definition(rest_client)
-            self._validate_field_definition(field_def)
-
-            value_existed = self._dropdown_value_exists(field_def, value_to_set)
-            value_added = False
-
-            if not value_existed:
-                yield self.status_message(
-                    "Value not present. Adding '{}' to incident.properties.{}".format(
-                        value_to_set,
-                        FIELD_API_NAME
-                    )
-                )
-
-                updated_field_def = self._append_dropdown_value(field_def, value_to_set)
-                self._update_incident_field_definition(rest_client, updated_field_def)
-
-                value_added = True
-
-                yield self.status_message("Dropdown value added successfully")
-            else:
-                yield self.status_message(
-                    "Value already exists. No dropdown metadata update needed."
-                )
+            datatable_field_result = self._ensure_datatable_multiselect_values_exist(
+                rest_client=rest_client,
+                values_to_ensure=values_to_ensure
+            )
 
             results = {
                 "success": True,
-                "field_api_name": FIELD_API_NAME,
-                "value": value_to_set,
-                "value_existed": value_existed,
-                "value_added": value_added
+                "causing_entity": values_to_ensure,
+                "datatable_api_name": DATATABLE_API_NAME,
+                "datatable_field_api_name": DATATABLE_FIELD_API_NAME,
+                "datatable_field_updated": datatable_field_result["updated"],
+                "values_checked": datatable_field_result["values_checked"],
+                "values_added": datatable_field_result["missing_values_added"],
+                "message": datatable_field_result["message"]
             }
 
-            yield self.status_message("legal_entity_causing dropdown check completed")
+            yield self.status_message("ensure-causing-entity function completed")
             yield FunctionResult(results)
 
         except Exception as err:
-            LOG.exception("legal_entity_causing dropdown update failed")
+            LOG.exception("ensure-causing-entity function failed")
 
             results = {
                 "success": False,
-                "field_api_name": FIELD_API_NAME,
-                "value": value_to_set,
-                "error": str(err),
-                "value_existed": False,
-                "value_added": False
+                "causing_entity": causing_entity,
+                "datatable_api_name": DATATABLE_API_NAME,
+                "datatable_field_api_name": DATATABLE_FIELD_API_NAME,
+                "error": str(err)
             }
 
             yield FunctionResult(results)
 
-    def _validate_value(self, value_to_set):
-        if value_to_set is None:
-            raise ValueError("legal_entity_causing_value is required")
+    def _ensure_datatable_multiselect_values_exist(
+        self,
+        rest_client,
+        values_to_ensure
+    ):
+        values_to_ensure = self._normalize_values_to_list(values_to_ensure)
 
-        value_to_set = str(value_to_set).strip()
+        if not values_to_ensure:
+            raise ValueError("No values supplied to ensure")
 
-        if not value_to_set:
-            raise ValueError("legal_entity_causing_value cannot be empty")
+        uri = "/types/{}/fields/{}".format(
+            DATATABLE_API_NAME,
+            DATATABLE_FIELD_API_NAME
+        )
 
-        return value_to_set
+        field_def = rest_client.get(uri)
 
-    def _get_incident_field_definition(self, rest_client):
-        """
-        API path is relative to /rest/orgs/{org_id}.
+        self._validate_field_definition(field_def)
 
-        Full REST pattern:
-          /rest/orgs/{org_id}/types/incident/fields/legal_entity_causing
-        """
-        uri = "/types/incident/fields/{}".format(FIELD_API_NAME)
-        return rest_client.get(uri)
+        existing_values = field_def.get("values") or []
+        existing_normalized = self._get_existing_field_values_normalized(existing_values)
+
+        missing_values = []
+
+        for value in values_to_ensure:
+            normalized = self._normalize_selection_value(value)
+
+            if normalized not in existing_normalized:
+                missing_values.append(value)
+
+        if not missing_values:
+            return {
+                "updated": False,
+                "values_checked": values_to_ensure,
+                "missing_values_added": [],
+                "message": "All values already existed"
+            }
+
+        updated_field_def = deepcopy(field_def)
+        updated_values = updated_field_def.get("values") or []
+
+        for value in missing_values:
+            updated_values.append({
+                "label": value,
+                "enabled": True,
+                "hidden": False
+            })
+
+        updated_field_def["values"] = updated_values
+
+        rest_client.put(uri, updated_field_def)
+
+        confirmed_field_def = rest_client.get(uri)
+        confirmed_values = confirmed_field_def.get("values") or []
+        confirmed_normalized = self._get_existing_field_values_normalized(
+            confirmed_values
+        )
+
+        still_missing = []
+
+        for value in values_to_ensure:
+            normalized = self._normalize_selection_value(value)
+
+            if normalized not in confirmed_normalized:
+                still_missing.append(value)
+
+        if still_missing:
+            raise RuntimeError(
+                "Metadata update did not persist these values: {}".format(
+                    ", ".join(still_missing)
+                )
+            )
+
+        return {
+            "updated": True,
+            "values_checked": values_to_ensure,
+            "missing_values_added": missing_values,
+            "message": "Missing values were added"
+        }
 
     def _validate_field_definition(self, field_def):
         if not isinstance(field_def, dict):
             raise ValueError(
-                "Unexpected field definition response for '{}'".format(
-                    FIELD_API_NAME
+                "Unexpected field definition response for {}.{}".format(
+                    DATATABLE_API_NAME,
+                    DATATABLE_FIELD_API_NAME
                 )
             )
 
         if "values" not in field_def:
             raise ValueError(
-                "Field '{}' does not appear to have dropdown values".format(
-                    FIELD_API_NAME
+                "Field {}.{} does not contain a values list".format(
+                    DATATABLE_API_NAME,
+                    DATATABLE_FIELD_API_NAME
                 )
             )
 
         if not isinstance(field_def.get("values"), list):
             raise ValueError(
-                "Field '{}' values property is not a list".format(
-                    FIELD_API_NAME
+                "Field {}.{} values property is not a list".format(
+                    DATATABLE_API_NAME,
+                    DATATABLE_FIELD_API_NAME
                 )
             )
 
-    def _dropdown_value_exists(self, field_def, value_to_set):
-        target = self._normalize_dropdown_value(value_to_set)
+        input_type = field_def.get("input_type")
 
-        for item in field_def.get("values", []):
+        if input_type and input_type not in {"multiselect", "select"}:
+            raise ValueError(
+                "Field {}.{} has input_type '{}', expected multiselect/select".format(
+                    DATATABLE_API_NAME,
+                    DATATABLE_FIELD_API_NAME,
+                    input_type
+                )
+            )
+
+    def _get_existing_field_values_normalized(self, existing_values):
+        existing_normalized = set()
+
+        for item in existing_values:
             if not isinstance(item, dict):
                 continue
 
-            candidates = [
-                item.get("label"),
-                item.get("value"),
-                item.get("name")
-            ]
+            for key in ("label", "value", "name"):
+                candidate = item.get(key)
 
-            for candidate in candidates:
-                if candidate and self._normalize_dropdown_value(candidate) == target:
-                    return True
+                if candidate is not None and candidate != "":
+                    existing_normalized.add(
+                        self._normalize_selection_value(candidate)
+                    )
 
-        return False
+        return existing_normalized
 
-    def _append_dropdown_value(self, field_def, value_to_set):
-        """
-        Return a full updated field definition with the new dropdown value appended.
+    def _normalize_values_to_list(self, value):
+        if value is None:
+            return []
 
-        Important:
-        This starts from the existing full field definition. Do not update the
-        field with only the new value, because the values list represents the
-        full dropdown list.
-        """
+        if isinstance(value, (list, tuple, set)):
+            raw_values = list(value)
 
-        updated_field_def = deepcopy(field_def)
+        elif isinstance(value, str):
+            stripped = value.strip()
 
-        existing_values = updated_field_def.get("values", [])
+            if not stripped:
+                return []
 
-        new_value = {
-            "label": value_to_set,
-            "enabled": True,
-            "hidden": False
-        }
+            if stripped.startswith("[") and stripped.endswith("]"):
+                try:
+                    parsed = json.loads(stripped)
 
-        existing_values.append(new_value)
-        updated_field_def["values"] = existing_values
+                    if isinstance(parsed, list):
+                        raw_values = parsed
+                    else:
+                        raw_values = [stripped]
 
-        return updated_field_def
+                except Exception:
+                    raw_values = [stripped]
 
-    def _update_incident_field_definition(self, rest_client, field_def):
-        uri = "/types/incident/fields/{}".format(FIELD_API_NAME)
-        return rest_client.put(uri, field_def)
+            elif "," in stripped:
+                raw_values = stripped.split(",")
 
-    def _normalize_dropdown_value(self, value):
+            else:
+                raw_values = [stripped]
+
+        else:
+            raw_values = [value]
+
+        cleaned_values = []
+
+        for item in raw_values:
+            if item is None:
+                continue
+
+            item = str(item).strip()
+
+            if not item:
+                continue
+
+            if len(item) > 255:
+                raise ValueError("Value is too long: {}".format(item))
+
+            if "\n" in item or "\r" in item:
+                raise ValueError("Value cannot contain newlines: {}".format(item))
+
+            cleaned_values.append(item)
+
+        return self._dedupe_preserve_order(cleaned_values)
+
+    def _dedupe_preserve_order(self, values):
+        seen = set()
+        deduped = []
+
+        for value in values:
+            normalized = self._normalize_selection_value(value)
+
+            if normalized not in seen:
+                seen.add(normalized)
+                deduped.append(value)
+
+        return deduped
+
+    def _normalize_selection_value(self, value):
         return str(value).strip().lower()
