@@ -20,12 +20,21 @@ LOG = logging.getLogger(__name__)
 class FunctionComponent(AppFunctionComponent):
     """
     Function:
-      - Ensure causing_entity exists as an available selection in the incident dropdown field.
-      - Ensure causing_entity exists as an available selection in the datatable multiselect field.
-      - Set incident.properties.dbih_gdpr_legal_entity_causing to causing_entity.
+      Ensure causing_entity exists as an available selection in both:
 
-    Required function inputs:
-      - incident_id
+      1. Incident field dropdown:
+         incident.properties.dbih_gdpr_legal_entity_causing
+
+      2. Legal Entities datatable multiselect field:
+         legal_entites_datatable.legal_entities_data_subjects_impacted
+
+    This function does NOT:
+      - update incident.properties.dbih_gdpr_legal_entity_causing
+      - update any incident details
+      - update any datatable rows
+      - require incident_id
+
+    Required function input:
       - causing_entity
     """
 
@@ -38,29 +47,18 @@ class FunctionComponent(AppFunctionComponent):
         yield self.status_message("Starting ensure-causing-entity function")
 
         rest_client = self.rest_client()
-
-        incident_id = getattr(fn_inputs, "incident_id", None)
         causing_entity = getattr(fn_inputs, "causing_entity", None)
 
         try:
-            incident_id = self._validate_incident_id(incident_id)
             values_to_ensure = self._normalize_values_to_list(causing_entity)
 
             if not values_to_ensure:
                 raise ValueError("causing_entity is required")
 
-            if len(values_to_ensure) != 1:
-                raise ValueError(
-                    "causing_entity must resolve to exactly one value when setting incident.properties.{}".format(
-                        FIELD_API_NAME
-                    )
-                )
-
-            causing_entity_value = values_to_ensure[0]
-
             yield self.status_message(
-                "Ensuring incident dropdown option exists: {}".format(
-                    causing_entity_value
+                "Ensuring incident field options exist for {}: {}".format(
+                    FIELD_API_NAME,
+                    ", ".join(values_to_ensure)
                 )
             )
 
@@ -68,13 +66,15 @@ class FunctionComponent(AppFunctionComponent):
                 rest_client=rest_client,
                 type_api_name="incident",
                 field_api_name=FIELD_API_NAME,
-                values_to_ensure=[causing_entity_value],
+                values_to_ensure=values_to_ensure,
                 expected_input_types={"select", "multiselect"}
             )
 
             yield self.status_message(
-                "Ensuring datatable multiselect option exists: {}".format(
-                    causing_entity_value
+                "Ensuring datatable field options exist for {}.{}: {}".format(
+                    DATATABLE_API_NAME,
+                    DATATABLE_FIELD_API_NAME,
+                    ", ".join(values_to_ensure)
                 )
             )
 
@@ -82,37 +82,23 @@ class FunctionComponent(AppFunctionComponent):
                 rest_client=rest_client,
                 type_api_name=DATATABLE_API_NAME,
                 field_api_name=DATATABLE_FIELD_API_NAME,
-                values_to_ensure=[causing_entity_value],
+                values_to_ensure=values_to_ensure,
                 expected_input_types={"select", "multiselect"}
-            )
-
-            yield self.status_message(
-                "Setting incident.properties.{} to '{}'".format(
-                    FIELD_API_NAME,
-                    causing_entity_value
-                )
-            )
-
-            incident_update_result = self._set_incident_property(
-                rest_client=rest_client,
-                incident_id=incident_id,
-                field_api_name=FIELD_API_NAME,
-                value_to_set=causing_entity_value
             )
 
             results = {
                 "success": True,
-                "incident_id": incident_id,
-                "causing_entity": causing_entity_value,
+                "causing_entity": values_to_ensure,
                 "incident_field_api_name": FIELD_API_NAME,
                 "incident_field_updated": incident_field_result["updated"],
+                "incident_field_values_checked": incident_field_result["values_checked"],
                 "incident_field_values_added": incident_field_result["missing_values_added"],
                 "datatable_api_name": DATATABLE_API_NAME,
                 "datatable_field_api_name": DATATABLE_FIELD_API_NAME,
                 "datatable_field_updated": datatable_field_result["updated"],
+                "datatable_field_values_checked": datatable_field_result["values_checked"],
                 "datatable_field_values_added": datatable_field_result["missing_values_added"],
-                "incident_updated": True,
-                "incident_update_result": incident_update_result
+                "message": "Selection metadata updated where needed"
             }
 
             yield self.status_message("ensure-causing-entity function completed")
@@ -123,13 +109,11 @@ class FunctionComponent(AppFunctionComponent):
 
             results = {
                 "success": False,
-                "incident_id": incident_id,
                 "causing_entity": causing_entity,
                 "incident_field_api_name": FIELD_API_NAME,
                 "datatable_api_name": DATATABLE_API_NAME,
                 "datatable_field_api_name": DATATABLE_FIELD_API_NAME,
-                "error": str(err),
-                "incident_updated": False
+                "error": str(err)
             }
 
             yield FunctionResult(results)
@@ -145,10 +129,11 @@ class FunctionComponent(AppFunctionComponent):
         """
         Ensures values exist in a SOAR select/multiselect field definition.
 
-        Incident field endpoint:
+        This updates field metadata only.
+
+        Examples:
           /types/incident/fields/dbih_gdpr_legal_entity_causing
 
-        Datatable field endpoint:
           /types/legal_entites_datatable/fields/legal_entities_data_subjects_impacted
         """
 
@@ -207,8 +192,8 @@ class FunctionComponent(AppFunctionComponent):
 
         updated_field_def["values"] = updated_values
 
-        # Sends the full updated field definition.
-        # Do not send only the new values, or existing options may be removed.
+        # Metadata update only.
+        # This does not update any incident data or datatable row data.
         rest_client.put(uri, updated_field_def)
 
         confirmed_field_def = rest_client.get(uri)
@@ -240,23 +225,6 @@ class FunctionComponent(AppFunctionComponent):
             "missing_values_added": missing_values,
             "message": "Missing values were added"
         }
-
-    def _set_incident_property(
-        self,
-        rest_client,
-        incident_id,
-        field_api_name,
-        value_to_set
-    ):
-        uri = "/incidents/{}".format(incident_id)
-
-        payload = {
-            "properties": {
-                field_api_name: value_to_set
-            }
-        }
-
-        return rest_client.patch(uri, payload)
 
     def _validate_field_definition(
         self,
@@ -319,6 +287,14 @@ class FunctionComponent(AppFunctionComponent):
         return existing_normalized
 
     def _normalize_values_to_list(self, value):
+        """
+        Accepts:
+          - "Entity A"
+          - ["Entity A", "Entity B"]
+          - '["Entity A", "Entity B"]'
+          - "Entity A, Entity B"
+        """
+
         if value is None:
             return []
 
@@ -385,20 +361,6 @@ class FunctionComponent(AppFunctionComponent):
                 deduped.append(value)
 
         return deduped
-
-    def _validate_incident_id(self, incident_id):
-        if incident_id is None:
-            raise ValueError("incident_id is required")
-
-        try:
-            incident_id = int(incident_id)
-        except Exception:
-            raise ValueError("incident_id must be an integer")
-
-        if incident_id <= 0:
-            raise ValueError("incident_id must be greater than zero")
-
-        return incident_id
 
     def _normalize_selection_value(self, value):
         return str(value).strip().lower()
