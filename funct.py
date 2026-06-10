@@ -9,20 +9,28 @@ from resilient_circuits import AppFunctionComponent, FunctionResult, app_functio
 PACKAGE_NAME = "fn_ensure_causing_entity"
 FN_NAME = "fn_ensure_causing_entity"
 
-# Incident single-select field whose available dropdown options must be updated.
-# This is incident.properties.dbih_gdpr_legal_entity_causing.
+# Incident single-select field metadata to update.
+# This corresponds to:
+#   incident.properties.dbih_gdpr_legal_entity_causing
+#
+# This function only updates the available dropdown options.
+# It does NOT set the incident field value.
 FIELD_API_NAME = "dbih_gdpr_legal_entity_causing"
 
-# Datatable multiselect fields whose available options must also be updated.
+# Datatable multiselect field metadata targets to update.
+#
+# Use the real datatable type API name and field API name.
+# The first target is your known working datatable/field pair.
+# Replace the second target placeholders with the real API names.
 DATATABLE_FIELD_TARGETS = [
     {
-        "datatable_api_name": "legal_entites_datatable",
-        "datatable_field_api_name": "legal_entities_data_subjects_impacted",
+        "type_api_name": "legal_entites_datatable",
+        "field_api_name": "legal_entities_data_subjects_impacted",
         "expected_input_types": {"multiselect"}
     },
     {
-        "datatable_api_name": "second_datatable_api_name",
-        "datatable_field_api_name": "second_datatable_multiselect_field_api_name",
+        "type_api_name": "second_datatable_api_name",
+        "field_api_name": "second_datatable_multiselect_field_api_name",
         "expected_input_types": {"multiselect"}
     }
 ]
@@ -35,14 +43,14 @@ class FunctionComponent(AppFunctionComponent):
     Function:
       Ensure causing_entity exists as an available selection in:
 
-      1. Incident single-select field:
+      1. Incident single-select field metadata:
          incident.properties.dbih_gdpr_legal_entity_causing
 
-      2. One or more datatable multiselect fields:
+      2. One or more datatable multiselect field metadata definitions:
          configured in DATATABLE_FIELD_TARGETS
 
     This function does NOT:
-      - update incident.properties.dbih_gdpr_legal_entity_causing
+      - set incident.properties.dbih_gdpr_legal_entity_causing
       - update any incident details
       - update any datatable rows
       - require incident_id
@@ -69,7 +77,7 @@ class FunctionComponent(AppFunctionComponent):
                 raise ValueError("causing_entity is required")
 
             yield self.status_message(
-                "Ensuring incident field options exist for {}: {}".format(
+                "Ensuring incident single-select options exist for {}: {}".format(
                     FIELD_API_NAME,
                     ", ".join(values_to_ensure)
                 )
@@ -86,29 +94,43 @@ class FunctionComponent(AppFunctionComponent):
             datatable_field_results = []
 
             for target in DATATABLE_FIELD_TARGETS:
-                datatable_api_name = target["datatable_api_name"]
-                datatable_field_api_name = target["datatable_field_api_name"]
+                type_api_name = target.get("type_api_name")
+                field_api_name = target.get("field_api_name")
                 expected_input_types = target.get("expected_input_types", {"multiselect"})
 
+                if not type_api_name:
+                    raise ValueError(
+                        "Missing type_api_name in DATATABLE_FIELD_TARGETS entry: {}".format(
+                            target
+                        )
+                    )
+
+                if not field_api_name:
+                    raise ValueError(
+                        "Missing field_api_name in DATATABLE_FIELD_TARGETS entry: {}".format(
+                            target
+                        )
+                    )
+
                 yield self.status_message(
-                    "Ensuring datatable field options exist for {}.{}: {}".format(
-                        datatable_api_name,
-                        datatable_field_api_name,
+                    "Ensuring datatable multiselect options exist for {}.{}: {}".format(
+                        type_api_name,
+                        field_api_name,
                         ", ".join(values_to_ensure)
                     )
                 )
 
                 datatable_result = self._ensure_field_values_exist(
                     rest_client=rest_client,
-                    type_api_name=datatable_api_name,
-                    field_api_name=datatable_field_api_name,
+                    type_api_name=type_api_name,
+                    field_api_name=field_api_name,
                     values_to_ensure=values_to_ensure,
                     expected_input_types=expected_input_types
                 )
 
                 datatable_field_results.append({
-                    "datatable_api_name": datatable_api_name,
-                    "datatable_field_api_name": datatable_field_api_name,
+                    "type_api_name": type_api_name,
+                    "field_api_name": field_api_name,
                     "updated": datatable_result["updated"],
                     "values_checked": datatable_result["values_checked"],
                     "values_added": datatable_result["missing_values_added"],
@@ -138,8 +160,8 @@ class FunctionComponent(AppFunctionComponent):
                 "incident_field_api_name": FIELD_API_NAME,
                 "datatable_field_targets": [
                     {
-                        "datatable_api_name": target["datatable_api_name"],
-                        "datatable_field_api_name": target["datatable_field_api_name"]
+                        "type_api_name": target.get("type_api_name"),
+                        "field_api_name": target.get("field_api_name")
                     }
                     for target in DATATABLE_FIELD_TARGETS
                 ],
@@ -157,17 +179,23 @@ class FunctionComponent(AppFunctionComponent):
         expected_input_types=None
     ):
         """
-        Ensures values exist in a SOAR select/multiselect field definition.
+        Ensure values exist in a SOAR select/multiselect field definition.
 
-        This updates field metadata only.
+        This updates metadata only.
 
-        Examples:
+        Example endpoints:
           /types/incident/fields/dbih_gdpr_legal_entity_causing
 
           /types/legal_entites_datatable/fields/legal_entities_data_subjects_impacted
 
           /types/{second_datatable_api_name}/fields/{second_datatable_field_api_name}
         """
+
+        if not type_api_name:
+            raise ValueError("type_api_name is required")
+
+        if not field_api_name:
+            raise ValueError("field_api_name is required")
 
         values_to_ensure = self._normalize_values_to_list(values_to_ensure)
 
@@ -180,6 +208,13 @@ class FunctionComponent(AppFunctionComponent):
             )
 
         uri = "/types/{}/fields/{}".format(
+            type_api_name,
+            field_api_name
+        )
+
+        LOG.info(
+            "Fetching field metadata from uri=%r type_api_name=%r field_api_name=%r",
+            uri,
             type_api_name,
             field_api_name
         )
@@ -224,8 +259,14 @@ class FunctionComponent(AppFunctionComponent):
 
         updated_field_def["values"] = updated_values
 
+        LOG.info(
+            "Updating field metadata uri=%r with missing values=%r",
+            uri,
+            missing_values
+        )
+
         # Metadata update only.
-        # This does not update incident values or datatable row values.
+        # This does NOT update incident values or datatable row values.
         #
         # Important:
         # This sends the full field definition back with the appended values.
