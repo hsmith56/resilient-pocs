@@ -9,10 +9,23 @@ from resilient_circuits import AppFunctionComponent, FunctionResult, app_functio
 PACKAGE_NAME = "fn_ensure_causing_entity"
 FN_NAME = "fn_ensure_causing_entity"
 
+# Incident single-select field whose available dropdown options must be updated.
+# This is incident.properties.dbih_gdpr_legal_entity_causing.
 FIELD_API_NAME = "dbih_gdpr_legal_entity_causing"
 
-DATATABLE_API_NAME = "legal_entites_datatable"
-DATATABLE_FIELD_API_NAME = "legal_entities_data_subjects_impacted"
+# Datatable multiselect fields whose available options must also be updated.
+DATATABLE_FIELD_TARGETS = [
+    {
+        "datatable_api_name": "legal_entites_datatable",
+        "datatable_field_api_name": "legal_entities_data_subjects_impacted",
+        "expected_input_types": {"multiselect"}
+    },
+    {
+        "datatable_api_name": "second_datatable_api_name",
+        "datatable_field_api_name": "second_datatable_multiselect_field_api_name",
+        "expected_input_types": {"multiselect"}
+    }
+]
 
 LOG = logging.getLogger(__name__)
 
@@ -20,13 +33,13 @@ LOG = logging.getLogger(__name__)
 class FunctionComponent(AppFunctionComponent):
     """
     Function:
-      Ensure causing_entity exists as an available selection in both:
+      Ensure causing_entity exists as an available selection in:
 
-      1. Incident field dropdown:
+      1. Incident single-select field:
          incident.properties.dbih_gdpr_legal_entity_causing
 
-      2. Legal Entities datatable multiselect field:
-         legal_entites_datatable.legal_entities_data_subjects_impacted
+      2. One or more datatable multiselect fields:
+         configured in DATATABLE_FIELD_TARGETS
 
     This function does NOT:
       - update incident.properties.dbih_gdpr_legal_entity_causing
@@ -67,24 +80,40 @@ class FunctionComponent(AppFunctionComponent):
                 type_api_name="incident",
                 field_api_name=FIELD_API_NAME,
                 values_to_ensure=values_to_ensure,
-                expected_input_types={"select", "multiselect"}
+                expected_input_types={"select"}
             )
 
-            yield self.status_message(
-                "Ensuring datatable field options exist for {}.{}: {}".format(
-                    DATATABLE_API_NAME,
-                    DATATABLE_FIELD_API_NAME,
-                    ", ".join(values_to_ensure)
+            datatable_field_results = []
+
+            for target in DATATABLE_FIELD_TARGETS:
+                datatable_api_name = target["datatable_api_name"]
+                datatable_field_api_name = target["datatable_field_api_name"]
+                expected_input_types = target.get("expected_input_types", {"multiselect"})
+
+                yield self.status_message(
+                    "Ensuring datatable field options exist for {}.{}: {}".format(
+                        datatable_api_name,
+                        datatable_field_api_name,
+                        ", ".join(values_to_ensure)
+                    )
                 )
-            )
 
-            datatable_field_result = self._ensure_field_values_exist(
-                rest_client=rest_client,
-                type_api_name=DATATABLE_API_NAME,
-                field_api_name=DATATABLE_FIELD_API_NAME,
-                values_to_ensure=values_to_ensure,
-                expected_input_types={"select", "multiselect"}
-            )
+                datatable_result = self._ensure_field_values_exist(
+                    rest_client=rest_client,
+                    type_api_name=datatable_api_name,
+                    field_api_name=datatable_field_api_name,
+                    values_to_ensure=values_to_ensure,
+                    expected_input_types=expected_input_types
+                )
+
+                datatable_field_results.append({
+                    "datatable_api_name": datatable_api_name,
+                    "datatable_field_api_name": datatable_field_api_name,
+                    "updated": datatable_result["updated"],
+                    "values_checked": datatable_result["values_checked"],
+                    "values_added": datatable_result["missing_values_added"],
+                    "message": datatable_result["message"]
+                })
 
             results = {
                 "success": True,
@@ -93,11 +122,7 @@ class FunctionComponent(AppFunctionComponent):
                 "incident_field_updated": incident_field_result["updated"],
                 "incident_field_values_checked": incident_field_result["values_checked"],
                 "incident_field_values_added": incident_field_result["missing_values_added"],
-                "datatable_api_name": DATATABLE_API_NAME,
-                "datatable_field_api_name": DATATABLE_FIELD_API_NAME,
-                "datatable_field_updated": datatable_field_result["updated"],
-                "datatable_field_values_checked": datatable_field_result["values_checked"],
-                "datatable_field_values_added": datatable_field_result["missing_values_added"],
+                "datatable_field_results": datatable_field_results,
                 "message": "Selection metadata updated where needed"
             }
 
@@ -111,8 +136,13 @@ class FunctionComponent(AppFunctionComponent):
                 "success": False,
                 "causing_entity": causing_entity,
                 "incident_field_api_name": FIELD_API_NAME,
-                "datatable_api_name": DATATABLE_API_NAME,
-                "datatable_field_api_name": DATATABLE_FIELD_API_NAME,
+                "datatable_field_targets": [
+                    {
+                        "datatable_api_name": target["datatable_api_name"],
+                        "datatable_field_api_name": target["datatable_field_api_name"]
+                    }
+                    for target in DATATABLE_FIELD_TARGETS
+                ],
                 "error": str(err)
             }
 
@@ -135,6 +165,8 @@ class FunctionComponent(AppFunctionComponent):
           /types/incident/fields/dbih_gdpr_legal_entity_causing
 
           /types/legal_entites_datatable/fields/legal_entities_data_subjects_impacted
+
+          /types/{second_datatable_api_name}/fields/{second_datatable_field_api_name}
         """
 
         values_to_ensure = self._normalize_values_to_list(values_to_ensure)
@@ -193,7 +225,11 @@ class FunctionComponent(AppFunctionComponent):
         updated_field_def["values"] = updated_values
 
         # Metadata update only.
-        # This does not update any incident data or datatable row data.
+        # This does not update incident values or datatable row values.
+        #
+        # Important:
+        # This sends the full field definition back with the appended values.
+        # Do not send only the new values, or existing options may be removed.
         rest_client.put(uri, updated_field_def)
 
         confirmed_field_def = rest_client.get(uri)
@@ -293,6 +329,9 @@ class FunctionComponent(AppFunctionComponent):
           - ["Entity A", "Entity B"]
           - '["Entity A", "Entity B"]'
           - "Entity A, Entity B"
+
+        Returns:
+          - ["Entity A", "Entity B"]
         """
 
         if value is None:
