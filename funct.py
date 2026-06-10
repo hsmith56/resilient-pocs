@@ -17,23 +17,14 @@ FN_NAME = "fn_ensure_causing_entity"
 # It does NOT set the incident field value.
 FIELD_API_NAME = "dbih_gdpr_legal_entity_causing"
 
-# Datatable multiselect field metadata targets to update.
-#
-# Use the real datatable type API name and field API name.
-# The first target is your known working datatable/field pair.
-# Replace the second target placeholders with the real API names.
-DATATABLE_FIELD_TARGETS = [
-    {
-        "type_api_name": "legal_entites_datatable",
-        "field_api_name": "legal_entities_data_subjects_impacted",
-        "expected_input_types": {"multiselect"}
-    },
-    {
-        "type_api_name": "second_datatable_api_name",
-        "field_api_name": "second_datatable_multiselect_field_api_name",
-        "expected_input_types": {"multiselect"}
-    }
-]
+# First datatable multiselect field metadata to update.
+DATATABLE_API_NAME = "legal_entites_datatable"
+DATATABLE_FIELD_API_NAME = "legal_entities_data_subjects_impacted"
+
+# Second datatable multiselect field metadata to update.
+# Replace these with the real second datatable API names.
+SECOND_DATATABLE_API_NAME = "second_datatable_api_name"
+SECOND_DATATABLE_FIELD_API_NAME = "second_datatable_multiselect_field_api_name"
 
 LOG = logging.getLogger(__name__)
 
@@ -46,8 +37,11 @@ class FunctionComponent(AppFunctionComponent):
       1. Incident single-select field metadata:
          incident.properties.dbih_gdpr_legal_entity_causing
 
-      2. One or more datatable multiselect field metadata definitions:
-         configured in DATATABLE_FIELD_TARGETS
+      2. First datatable multiselect field metadata:
+         legal_entites_datatable.legal_entities_data_subjects_impacted
+
+      3. Second datatable multiselect field metadata:
+         configured by SECOND_DATATABLE_API_NAME and SECOND_DATATABLE_FIELD_API_NAME
 
     This function does NOT:
       - set incident.properties.dbih_gdpr_legal_entity_causing
@@ -91,60 +85,59 @@ class FunctionComponent(AppFunctionComponent):
                 expected_input_types={"select"}
             )
 
-            datatable_field_results = []
-
-            for target in DATATABLE_FIELD_TARGETS:
-                type_api_name = target.get("type_api_name")
-                field_api_name = target.get("field_api_name")
-                expected_input_types = target.get("expected_input_types", {"multiselect"})
-
-                if not type_api_name:
-                    raise ValueError(
-                        "Missing type_api_name in DATATABLE_FIELD_TARGETS entry: {}".format(
-                            target
-                        )
-                    )
-
-                if not field_api_name:
-                    raise ValueError(
-                        "Missing field_api_name in DATATABLE_FIELD_TARGETS entry: {}".format(
-                            target
-                        )
-                    )
-
-                yield self.status_message(
-                    "Ensuring datatable multiselect options exist for {}.{}: {}".format(
-                        type_api_name,
-                        field_api_name,
-                        ", ".join(values_to_ensure)
-                    )
+            yield self.status_message(
+                "Ensuring first datatable multiselect options exist for {}.{}: {}".format(
+                    DATATABLE_API_NAME,
+                    DATATABLE_FIELD_API_NAME,
+                    ", ".join(values_to_ensure)
                 )
+            )
 
-                datatable_result = self._ensure_field_values_exist(
-                    rest_client=rest_client,
-                    type_api_name=type_api_name,
-                    field_api_name=field_api_name,
-                    values_to_ensure=values_to_ensure,
-                    expected_input_types=expected_input_types
+            datatable_field_result = self._ensure_field_values_exist(
+                rest_client=rest_client,
+                type_api_name=DATATABLE_API_NAME,
+                field_api_name=DATATABLE_FIELD_API_NAME,
+                values_to_ensure=values_to_ensure,
+                expected_input_types={"multiselect"}
+            )
+
+            yield self.status_message(
+                "Ensuring second datatable multiselect options exist for {}.{}: {}".format(
+                    SECOND_DATATABLE_API_NAME,
+                    SECOND_DATATABLE_FIELD_API_NAME,
+                    ", ".join(values_to_ensure)
                 )
+            )
 
-                datatable_field_results.append({
-                    "type_api_name": type_api_name,
-                    "field_api_name": field_api_name,
-                    "updated": datatable_result["updated"],
-                    "values_checked": datatable_result["values_checked"],
-                    "values_added": datatable_result["missing_values_added"],
-                    "message": datatable_result["message"]
-                })
+            second_datatable_field_result = self._ensure_field_values_exist(
+                rest_client=rest_client,
+                type_api_name=SECOND_DATATABLE_API_NAME,
+                field_api_name=SECOND_DATATABLE_FIELD_API_NAME,
+                values_to_ensure=values_to_ensure,
+                expected_input_types={"multiselect"}
+            )
 
             results = {
                 "success": True,
                 "causing_entity": values_to_ensure,
+
                 "incident_field_api_name": FIELD_API_NAME,
                 "incident_field_updated": incident_field_result["updated"],
                 "incident_field_values_checked": incident_field_result["values_checked"],
                 "incident_field_values_added": incident_field_result["missing_values_added"],
-                "datatable_field_results": datatable_field_results,
+
+                "datatable_api_name": DATATABLE_API_NAME,
+                "datatable_field_api_name": DATATABLE_FIELD_API_NAME,
+                "datatable_field_updated": datatable_field_result["updated"],
+                "datatable_field_values_checked": datatable_field_result["values_checked"],
+                "datatable_field_values_added": datatable_field_result["missing_values_added"],
+
+                "second_datatable_api_name": SECOND_DATATABLE_API_NAME,
+                "second_datatable_field_api_name": SECOND_DATATABLE_FIELD_API_NAME,
+                "second_datatable_field_updated": second_datatable_field_result["updated"],
+                "second_datatable_field_values_checked": second_datatable_field_result["values_checked"],
+                "second_datatable_field_values_added": second_datatable_field_result["missing_values_added"],
+
                 "message": "Selection metadata updated where needed"
             }
 
@@ -157,14 +150,15 @@ class FunctionComponent(AppFunctionComponent):
             results = {
                 "success": False,
                 "causing_entity": causing_entity,
+
                 "incident_field_api_name": FIELD_API_NAME,
-                "datatable_field_targets": [
-                    {
-                        "type_api_name": target.get("type_api_name"),
-                        "field_api_name": target.get("field_api_name")
-                    }
-                    for target in DATATABLE_FIELD_TARGETS
-                ],
+
+                "datatable_api_name": DATATABLE_API_NAME,
+                "datatable_field_api_name": DATATABLE_FIELD_API_NAME,
+
+                "second_datatable_api_name": SECOND_DATATABLE_API_NAME,
+                "second_datatable_field_api_name": SECOND_DATATABLE_FIELD_API_NAME,
+
                 "error": str(err)
             }
 
